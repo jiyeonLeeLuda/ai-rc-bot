@@ -41,9 +41,19 @@ M5Stack CoreS3 기반 자작 스타크챤(StackChan) + 분리형 탱크 차량 "
 |---|---|---|
 | 1 | 표준 스타크챤: 얼굴 + AI 음성 대화 + 목 2축 | **음성 대화 동작 확인** (서보 셸 미장착) |
 | 1.5 | 도킹 크래들(레고): 홈 치수·자석 위치 = 마스터 규격. 책상 지정석 겸 충전 스테이션 | 미착수 |
-| 2 | 차량(TP101 + 레고 뼈대) + **유선 제어**: CoreS3 Grove → TB6612. 탑승 시 케이블 연결 = "안전벨트" 연출 | 미착수 |
-| 3 | **무선(ESP-NOW)**: 차량에 ESP32-C3 탑재, 리드 스위치 승하차 감지, LED 연동 | 미착수 |
-| 4 | 소프트웨어 확장: 미러 모드 고도화, 사무실 모드, 워치 연동 | 미러 모드 v0.1 구현됨 |
+| 2 | 차량(TP101 + 레고 뼈대) + **유선 제어**: CoreS3 Grove → TB6612. 탑승 시 케이블 연결 = "안전벨트" 연출 | **부품 전량 도착, 조립 가이드 작성됨(docs/)**. drive 펌웨어 미구현 |
+| 3 | **무선**: 차량에 ESP32-C3 탑재, 리드 스위치 승하차 감지, LED 연동 (ESP-NOW 대신 cockpit WS 프로토콜 재사용 방침) | 미착수 |
+| 4 | 소프트웨어 확장: 미러 모드 고도화, 사무실 모드, 워치 연동 | **미러 모드 서버 이관 완료** |
+
+### 조종실(cockpit) 아키텍처 — 2026-10-22 실기 검증 완료
+- 모노레포(이 리포): protocol(zod)·gateway(NestJS :3001)·dashboard(Next :3000)·mock-robot
+- 로봇 펌웨어 `feature/cockpit-ws` 브랜치: WS 상시접속, hello/state/touch 송신,
+  sequence·tts.chunk 재생, 재접속 5초, WiFi 절전 OFF. SD `SC_ExConfig.yaml`의
+  `cockpit.host`(=맥 IP)로 활성화, 미설정 시 단독 동작
+- 미러 모드: cockpit 연결 시 camera.frame(VGA JPEG) 서버 전송 → 서버 분류(1~2.5초)
+  → sequence 하달. 온디바이스 TLS 제거로 HeapGuard 메모리 문제 해소 (실기 확인)
+- 음성 파이프라인 서버 기준선: stt 2.6s / llm 2.8s / tts 1.8s / 총 7.2s (mock-robot E2E)
+- 다음 후보: 마이크 스트리밍(음성 턴 서버 이관), drive 펌웨어, cockpit 설정 웹 UI화
 
 ## 4. 디자인 (확정: v7 「BLACK CYBER ROADSTER」)
 
