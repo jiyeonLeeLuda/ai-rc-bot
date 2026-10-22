@@ -8,6 +8,8 @@
  */
 
 import * as readline from "readline";
+import { spawnSync } from "node:child_process";
+import { readFileSync, existsSync } from "node:fs";
 import WebSocket from "ws";
 import {
   PROTOCOL_VERSION,
@@ -23,6 +25,12 @@ import {
 const GATEWAY_WS_URL =
   process.env["GATEWAY_WS_URL"] ?? "ws://localhost:3001/robot";
 const ROBOT_ID = process.env["ROBOT_ID"] ?? "mock-stacky";
+
+// `a` 명령의 기본 발화 텍스트
+const DEFAULT_UTTERANCE = "안녕 스타키, 오늘 기분 어때?";
+
+// audio.chunk 한 조각의 최대 크기 (raw PCM 바이트). 16kHz/16bit = 초당 32,000바이트 → 약 1초 분량.
+const CHUNK_SIZE = 32_000;
 
 // ---------------------------------------------------------------------------
 // 표정 이모지 매핑
@@ -53,7 +61,7 @@ let batteryPct = 95; // 서서히 감소 시뮬레이션
 let audioSeq = 0; // audio.chunk 시퀀스 번호
 let cameraSeq = 0; // camera.frame 시퀀스 번호
 
-// TTS 수신 집계
+// TTS 수신 집계 (서버 → 로봇 방향)
 let ttsChunkCount = 0;
 let ttsByteCount = 0;
 
@@ -95,6 +103,90 @@ const DUMMY_JPEG_BASE64 =
   "/9oADAMBAAIRAxEAPwCwABmX/9k=";
 
 // ---------------------------------------------------------------------------
+// 음성 합성 (macOS say + afconvert)
+// ---------------------------------------------------------------------------
+
+/**
+ * macOS `say` + `afconvert`를 사용해 텍스트를 16kHz/16bit/mono PCM으로 변환한 뒤,
+ * CHUNK_SIZE 단위로 분할한 Buffer 배열을 반환한다.
+ *
+ * say/afconvert를 사용할 수 없는 환경(비 macOS 등)에서는 null을 반환하며,
+ * 호출부에서 더미 데이터로 폴백한다.
+ */
+function synthesizeVoice(text: string): Buffer[] | null {
+  const aiffPath = "/tmp/mock-voice.aiff";
+  const wavPath = "/tmp/mock-voice.wav";
+
+  // 1단계: say로 음성 합성 (Yuna = 한국어 보이스)
+  let sayResult = spawnSync("say", ["-v", "Yuna", text, "-o", aiffPath], {
+    encoding: "buffer",
+  });
+
+  if (sayResult.status !== 0) {
+    // Yuna 보이스가 없으면 기본 보이스로 재시도
+    bot("⚠️  Yuna 보이스 없음 — 기본 보이스로 재시도");
+    sayResult = spawnSync("say", [text, "-o", aiffPath], {
+      encoding: "buffer",
+    });
+  }
+
+  if (sayResult.status !== 0 || !existsSync(aiffPath)) {
+    bot("⚠️  say 명령 실패 — 더미 PCM으로 폴백");
+    return null;
+  }
+
+  // 2단계: afconvert로 16kHz/16bit/mono WAV 변환
+  const convertResult = spawnSync(
+    "afconvert",
+    [aiffPath, "-o", wavPath, "-d", "LEI16@16000", "-c", "1", "-f", "WAVE"],
+    { encoding: "buffer" }
+  );
+
+  if (convertResult.status !== 0 || !existsSync(wavPath)) {
+    bot("⚠️  afconvert 실패 — 더미 PCM으로 폴백");
+    return null;
+  }
+
+  // 3단계: WAV 44바이트 헤더 제거 → raw PCM → CHUNK_SIZE 단위 분할
+  const wav = readFileSync(wavPath);
+  // WAV 표준 헤더는 44바이트. 안전하게 실제 "data" 청크 오프셋을 찾는다.
+  const pcm = stripWavHeader(wav);
+
+  if (pcm.length === 0) {
+    bot("⚠️  WAV PCM 데이터 없음 — 더미 PCM으로 폴백");
+    return null;
+  }
+
+  // CHUNK_SIZE 단위로 슬라이스
+  const chunks: Buffer[] = [];
+  for (let offset = 0; offset < pcm.length; offset += CHUNK_SIZE) {
+    chunks.push(pcm.subarray(offset, offset + CHUNK_SIZE));
+  }
+  return chunks;
+}
+
+/**
+ * WAV 버퍼에서 "data" 청크를 찾아 헤더를 제거한 raw PCM만 반환한다.
+ * 못 찾으면 표준 44바이트 오프셋으로 폴백한다.
+ */
+function stripWavHeader(wav: Buffer): Buffer {
+  // "data" 마커를 리틀엔디언 바이트로 탐색 (d=0x64, a=0x61, t=0x74, a=0x61)
+  for (let i = 0; i < wav.length - 8; i++) {
+    if (
+      wav[i] === 0x64 &&
+      wav[i + 1] === 0x61 &&
+      wav[i + 2] === 0x74 &&
+      wav[i + 3] === 0x61
+    ) {
+      // i+4 ~ i+7 : data 청크 크기(4바이트). 실제 PCM은 i+8부터 시작.
+      return wav.subarray(i + 8);
+    }
+  }
+  // 표준 44바이트 헤더로 폴백
+  return wav.subarray(44);
+}
+
+// ---------------------------------------------------------------------------
 // 서버 메시지 핸들러
 // ---------------------------------------------------------------------------
 
@@ -102,7 +194,9 @@ const DUMMY_JPEG_BASE64 =
  * sequence 메시지를 스텝별로 순차 재생한다.
  * 각 스텝을 콘솔에 출력한 뒤 durationMs만큼 실제로 대기한다.
  */
-async function playSequence(msg: Extract<ServerMessage, { type: "sequence" }>): Promise<void> {
+async function playSequence(
+  msg: Extract<ServerMessage, { type: "sequence" }>
+): Promise<void> {
   // 같은 id가 이미 재생 중이면 무시 (프로토콜 스펙: 중복 방지)
   if (playingSequenceId === msg.id) {
     bot(`⚠️  sequence "${msg.id}" 이미 재생 중 — 무시`);
@@ -179,8 +273,10 @@ function handleServerMessage(raw: string): void {
       // base64 데이터 길이를 실제 바이트 수로 근사 (4자 → 3바이트)
       ttsByteCount += Math.floor((msg.data.length * 3) / 4);
       if (msg.final) {
+        // 서버 TTS는 24kHz/16bit PCM. 재생 길이 추정: bytes / (24000 샘플/초 × 2 바이트/샘플)
+        const durationSec = (ttsByteCount / (24_000 * 2)).toFixed(1);
         bot(
-          `▶ 재생 완료 (${ttsChunkCount} chunks, ${ttsByteCount} bytes)`
+          `▶ 재생 완료 (${ttsChunkCount} chunks, ${ttsByteCount} bytes, ~${durationSec}초)`
         );
         ttsChunkCount = 0;
         ttsByteCount = 0;
@@ -248,7 +344,15 @@ function connect(): void {
       robotId: ROBOT_ID,
       firmware: "mock-0.1",
       // drive 포함: 차량 탑승 상태 시뮬레이션
-      capabilities: ["face", "servo", "mic", "speaker", "camera", "led", "drive"],
+      capabilities: [
+        "face",
+        "servo",
+        "mic",
+        "speaker",
+        "camera",
+        "led",
+        "drive",
+      ],
     });
 
     // 2) 5초마다 state 전송
@@ -321,12 +425,15 @@ function setupStdin(send: (msg: RobotMessage) => void): void {
   });
 
   rl.on("line", (line) => {
-    const cmd = line.trim();
+    const trimmed = line.trim();
     if (currentSend == null) {
       bot("⚠️  아직 연결되지 않음");
       return;
     }
-    handleCommand(cmd, currentSend);
+    // handleCommand는 async이므로 에러를 잡아 출력한다.
+    void handleCommand(trimmed, currentSend).catch((err: unknown) => {
+      bot(`⚠️  명령 처리 중 오류: ${err}`);
+    });
   });
 
   rl.on("close", () => {
@@ -338,38 +445,76 @@ function setupStdin(send: (msg: RobotMessage) => void): void {
 /** 사용 가능한 명령어 목록을 출력한다. */
 function printHelp(): void {
   console.log("");
-  console.log("=".repeat(50));
+  console.log("=".repeat(55));
   console.log(" 🤖 mock-robot 인터랙티브 모드");
-  console.log("=".repeat(50));
-  console.log("  a       — 가짜 발화 (audio.chunk ×5, final:true)");
-  console.log("  f       — 가짜 카메라 프레임 1장");
-  console.log("  t       — 터치: center");
-  console.log("  tf      — 터치: forehead");
-  console.log("  tl      — 터치: left-edge");
-  console.log("  q       — 종료");
-  console.log("=".repeat(50));
+  console.log("=".repeat(55));
+  console.log(`  a [텍스트]  — 실제 음성 발화 (macOS say → 16kHz PCM)`);
+  console.log(`               텍스트 생략 시: "${DEFAULT_UTTERANCE}"`);
+  console.log("  f           — 가짜 카메라 프레임 1장 (1×1 JPEG)");
+  console.log("  t           — 터치: center");
+  console.log("  tf          — 터치: forehead");
+  console.log("  tl          — 터치: left-edge");
+  console.log("  q           — 종료");
+  console.log("=".repeat(55));
   console.log("");
 }
 
 /**
  * stdin 한 줄을 해석해 적절한 RobotMessage를 전송한다.
+ *
+ * `a` 명령은 macOS say/afconvert로 음성을 합성하므로 async다.
+ * 합성 실패 시 더미 base64로 폴백한다.
  */
-function handleCommand(cmd: string, send: (msg: RobotMessage) => void): void {
-  switch (cmd) {
+async function handleCommand(
+  line: string,
+  send: (msg: RobotMessage) => void
+): Promise<void> {
+  // 첫 토큰이 명령어, 나머지가 인자
+  const spaceIdx = line.indexOf(" ");
+  const command = spaceIdx === -1 ? line : line.slice(0, spaceIdx);
+  const arg = spaceIdx === -1 ? "" : line.slice(spaceIdx + 1).trim();
+
+  switch (command) {
     case "a": {
-      // 가짜 발화: audio.chunk 5개 + 마지막 final:true
-      // 실제 PCM 대신 짧은 base64 더미 데이터를 사용한다.
-      const dummyPcm = Buffer.from("MOCK_PCM_FRAME").toString("base64");
-      for (let i = 0; i < 5; i++) {
-        const isFinal = i === 4;
-        send({
-          type: "audio.chunk",
-          seq: audioSeq++,
-          data: dummyPcm,
-          final: isFinal,
-        });
+      const text = arg !== "" ? arg : DEFAULT_UTTERANCE;
+
+      // macOS say + afconvert로 실제 PCM 생성 시도
+      const pcmChunks = synthesizeVoice(text);
+
+      if (pcmChunks !== null) {
+        // 실제 PCM을 CHUNK_SIZE 단위로 audio.chunk 전송
+        const totalBytes = pcmChunks.reduce((acc, c) => acc + c.length, 0);
+        const startSeq = audioSeq;
+
+        for (let i = 0; i < pcmChunks.length; i++) {
+          const isFinal = i === pcmChunks.length - 1;
+          send({
+            type: "audio.chunk",
+            seq: audioSeq++,
+            data: pcmChunks[i].toString("base64"),
+            final: isFinal,
+          });
+        }
+
+        bot(
+          `🎙 ${pcmChunks.length} chunks (${(totalBytes / 1024).toFixed(1)} KB, '${text}') seq ${startSeq}~${audioSeq - 1}`
+        );
+      } else {
+        // 폴백: 더미 base64 5개
+        const dummyPcm = Buffer.from("MOCK_PCM_FRAME").toString("base64");
+        const startSeq = audioSeq;
+        for (let i = 0; i < 5; i++) {
+          send({
+            type: "audio.chunk",
+            seq: audioSeq++,
+            data: dummyPcm,
+            final: i === 4,
+          });
+        }
+        bot(
+          `🎙 더미 5 chunks (폴백, seq ${startSeq}~${audioSeq - 1})`
+        );
       }
-      bot(`🎙 가짜 발화 전송 (5 chunks, seq ${audioSeq - 5}~${audioSeq - 1})`);
       break;
     }
 
@@ -411,7 +556,9 @@ function handleCommand(cmd: string, send: (msg: RobotMessage) => void): void {
       break;
 
     default:
-      bot(`❓ 알 수 없는 명령: "${cmd}" — 'q' 로 종료, 나머지 명령은 시작 시 안내 참고`);
+      bot(
+        `❓ 알 수 없는 명령: "${command}" — 'q' 로 종료, 나머지 명령은 시작 시 안내 참고`
+      );
   }
 }
 

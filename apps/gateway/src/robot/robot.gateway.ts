@@ -48,6 +48,7 @@ export class RobotGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const robotId = this.registry.getRobotIdBySocket(client);
     this.logger.log(`Robot socket disconnected: ${robotId ?? '(미등록)'}`);
     if (robotId) {
+      this.voice.cleanup(robotId);
       this.vision.cleanup(robotId);
     }
     this.registry.unregister(client);
