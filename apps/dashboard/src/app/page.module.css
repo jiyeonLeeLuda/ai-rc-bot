@@ -1,0 +1,189 @@
+.page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+}
+
+/* ── 헤더 ── */
+.header {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  border-bottom: 1px solid rgba(0, 240, 255, 0.15);
+  padding-bottom: 1rem;
+}
+
+.title {
+  font-size: 1.6rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  color: #d0d0e8;
+}
+
+.accent {
+  color: #00f0ff;
+}
+
+.subtitle {
+  font-size: 0.8rem;
+  color: #888899;
+}
+
+/* ── 로봇 섹션 ── */
+.robotSection {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.sectionTitle {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #888899;
+}
+
+.count {
+  font-size: 0.75rem;
+  color: #00f0ff;
+  font-family: monospace;
+}
+
+.error {
+  font-size: 0.75rem;
+  color: #ff6666;
+}
+
+.robotList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+/* 연결 0대 안내 */
+.emptyState {
+  padding: 1.5rem;
+  background: #14141c;
+  border: 1px dashed rgba(0, 240, 255, 0.2);
+  border-radius: 8px;
+  color: #888899;
+  line-height: 1.8;
+}
+
+.hint {
+  font-size: 0.82rem;
+  color: #555568;
+}
+
+.code {
+  font-family: monospace;
+  background: rgba(0, 240, 255, 0.08);
+  border: 1px solid rgba(0, 240, 255, 0.2);
+  padding: 0.1em 0.45em;
+  border-radius: 4px;
+  color: #00c8d8;
+}
+
+/* ── 컨트롤 패널 ── */
+.controlPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding: 1.5rem;
+  background: #14141c;
+  border: 1px solid rgba(255, 0, 170, 0.15);
+  border-radius: 10px;
+}
+
+.controlHeader {
+  border-bottom: 1px solid rgba(255, 0, 170, 0.1);
+  padding-bottom: 0.75rem;
+}
+
+.controlling {
+  font-size: 0.8rem;
+  color: #888899;
+}
+
+.robotName {
+  color: #ff00aa;
+  font-family: monospace;
+}
+
+/* 컨트롤 3열 그리드 */
+.controlGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (max-width: 680px) {
+  .controlGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Say 섹션 */
+.saySection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.panelTitle {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #aa88ff;
+  margin: 0;
+}
+
+.sayRow {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.sayInput {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  min-width: 0;
+}
+
+.sayBtn {
+  padding: 0.5rem 1rem;
+  background: rgba(170, 136, 255, 0.15);
+  border: 1px solid rgba(170, 136, 255, 0.4);
+  border-radius: 6px;
+  color: #aa88ff;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.1s;
+}
+
+.sayBtn:hover:not(:disabled) {
+  background: rgba(170, 136, 255, 0.28);
+}
+
+.sayBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.selectHint {
+  text-align: center;
+  color: #555568;
+  font-size: 0.82rem;
+}

@@ -1,0 +1,16 @@
+{
+  "name": "snack-express",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@10.15.1",
+  "scripts": {
+    "build": "pnpm -r build",
+    "dev:gateway": "pnpm --filter @snack-express/gateway dev",
+    "dev:dashboard": "pnpm --filter @snack-express/dashboard dev",
+    "mock-robot": "pnpm --filter @snack-express/mock-robot start",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test"
+  }
+}

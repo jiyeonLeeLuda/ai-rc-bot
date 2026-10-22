@@ -1,0 +1,20 @@
+{
+  "name": "@snack-express/mock-robot",
+  "version": "0.1.0",
+  "private": true,
+  "description": "실물 M5Stack CoreS3 없이 게이트웨이를 개발·테스트하기 위한 가짜 로봇 CLI",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@snack-express/protocol": "workspace:*",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/ws": "^8.5.13",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.0"
+  }
+}

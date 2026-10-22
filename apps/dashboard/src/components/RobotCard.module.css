@@ -1,0 +1,75 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem 1.2rem;
+  background: #14141c;
+  border: 1px solid rgba(0, 240, 255, 0.12);
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  min-width: 220px;
+}
+
+.card:hover {
+  border-color: rgba(0, 240, 255, 0.4);
+}
+
+/* 선택된 카드: 시안 테두리 + 미세 글로우 */
+.selected {
+  border-color: #00f0ff;
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.25);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.robotId {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #d0d0e8;
+  font-family: monospace;
+}
+
+.firmware {
+  font-size: 0.72rem;
+  color: #555568;
+}
+
+.mode {
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.status {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.badge {
+  font-size: 0.75rem;
+  color: #a0a0c0;
+}
+
+.caps {
+  display: flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+  margin-top: 0.2rem;
+}
+
+.cap {
+  font-size: 0.65rem;
+  padding: 0.15rem 0.45rem;
+  background: rgba(0, 240, 255, 0.08);
+  border: 1px solid rgba(0, 240, 255, 0.2);
+  border-radius: 20px;
+  color: #00c8d8;
+  font-family: monospace;
+  text-transform: lowercase;
+}

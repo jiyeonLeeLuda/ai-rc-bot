@@ -1,0 +1,78 @@
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #00f0ff;
+  margin: 0;
+}
+
+.disabled {
+  color: #555568;
+  font-weight: 400;
+  text-transform: none;
+}
+
+.pad {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.row {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.btn {
+  width: 56px;
+  height: 56px;
+  font-size: 1.2rem;
+  background: #14141c;
+  border: 1px solid rgba(0, 240, 255, 0.25);
+  border-radius: 8px;
+  color: #00f0ff;
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s, transform 0.08s;
+  user-select: none;
+  touch-action: none; /* 터치 스크롤 방지 */
+}
+
+.btn:hover:not(:disabled) {
+  background: rgba(0, 240, 255, 0.1);
+  border-color: #00f0ff;
+}
+
+.btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* 누르는 동안 강조 */
+.pressed {
+  background: rgba(0, 240, 255, 0.2) !important;
+  border-color: #00f0ff !important;
+  transform: scale(0.92);
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
+}
+
+/* 버튼 없는 자리 — 십자 레이아웃 빈 칸 */
+.empty {
+  display: inline-block;
+  width: 56px;
+  height: 56px;
+}
+
+.hint {
+  font-size: 0.68rem;
+  color: #555568;
+  margin: 0;
+  text-align: center;
+}
