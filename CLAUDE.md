@@ -57,7 +57,9 @@ M5Stack CoreS3 기반 자작 스타크챤(StackChan) + 분리형 탱크 차량 "
 ## 5. 소프트웨어
 
 ### 현재 펌웨어
-- `ronron-gh/AI_StackChan2_DevCam` (robo8080 AI_StackChan2 기반, 얼굴 감지·추적) + 미러 모드 v0.1 개조본
+- **실제 소스: `~/Documents/work/stackchan/AI_StackChan_Ex/firmware`** (미러 모드·윙크·TLS 재사용 커밋 포함 개조본. DevCam 체크아웃도 옆에 있으나 그쪽은 미개조 원본)
+- 빌드: PlatformIO env `m5stack-cores3`, 산출물 `.pio/build/m5stack-cores3/` (bootloader 0x0 / partitions 0x8000 / boot_app0 0xe000 / firmware 0x10000)
+- 복구 이력(2026-10-22): 장기 방치 후 부팅 불능(검은 화면) → 플래시 **전체 삭제(erase-flash)** 후 재플래시로 해결. 앱 영역만 다시 쓰면 안 살아남 — NVS 등 데이터 영역이 깨진 경우 전체 삭제가 필요. 공장 데모(M5Burner 캐시의 CoreS3 UserDemo)로 하드웨어 생사 판별 가능
 - STT: Whisper(OpenAI) / LLM: OpenAI / TTS: **VoiceVox 즌다몬(일본어 전용 — 한국어 미지원이 현안)**
 - 미러 모드 v0.1 사용법: 화면 중앙 터치 또는 "미러 모드" → ON/OFF. ON 시 ~2.5초 간격 클라우드 표정 분류 → 따라 웃음. 블로우키스/손흔들기/손하트 리액션. 이마 터치+"빵야!"/"훅!" 리액션. 왼쪽 가장자리 터치 = 무음 모드
 
