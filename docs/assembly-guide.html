@@ -115,7 +115,68 @@ GPIO는 ON/OFF밖에 못 합니다. 그런데 초당 수천 번 껐다 켰다 �
   <div class="part"><b>M5Stack CoreS3</b><span>두뇌(이자 조종실 서버의 씬 클라이언트). Grove 포트에서 신호 4가닥 + 3.3V + GND를 냅니다.</span></div>
 </div>
 
-<h2><span class="no">02</span>배선도</h2>
+<h2><span class="no">02</span>기계 조립 — 상자에서 책상까지</h2>
+
+<p>배선(전선 연결)은 맨 마지막입니다. 그 전에 몸체부터 만들어요.
+준비물: <b>소형 십자드라이버 · 가위 · 마스킹테이프 · 케이블타이</b>.
+그리고 18650 배터리는 멀리 치워두세요 — <b>마지막 단계 전까지 등장하지 않습니다.</b></p>
+
+<ol class="steps">
+<li><b class="t">부품 4무더기 분류</b>
+<p>① TP101 상자 ② TB6612 봉지 ③ 18650+홀더 ④ CoreS3+Grove 케이블. 섞이면 나사 찾느라 시간 다 갑니다.</p></li>
+<li><b class="t">TP101 섀시 조립 (동봉 설명서 + 아래 포인트)</b>
+<p>모터 2개를 섀시 안쪽에 나사 고정 — 이때 <b>모터 전선 2가닥이 섀시 윗면(TB6612 둘 곳) 쪽으로 나오게</b> 방향을 잡으세요. 전선이 짧아서 방향이 틀리면 다시 풀게 됩니다. 이어서 구동 스프로킷을 모터 축에, 보조 바퀴를 섀시에, 마지막으로 트랙을 겁니다.</p>
+<p class="why">✅ 체크: 손으로 트랙을 굴려 양쪽 다 부드럽게 도는지. 뻑뻑하면 바퀴 간격 조절.</p></li>
+<li><b class="t">부품 자리 잡기 (연결 없이 위치만)</b>
+<p>아래 배치도대로 마스킹테이프로 <b>가고정</b>만 합니다. 배선 길이가 닿는지 이 단계에서 가늠해보세요.</p>
+<p class="why">⚠ TB6612 모듈에 핀헤더(빗살 금속핀)가 납땜돼 있는지 확인 — 핀이 봉지에 따로 들어있으면 납땜이 필요한 타입입니다.</p></li>
+</ol>
+
+<figure>
+<div class="diagram">
+<svg viewBox="0 0 640 480" xmlns="http://www.w3.org/2000/svg" font-family="ui-monospace, Menlo, monospace" font-size="13">
+  <!-- 트랙 -->
+  <rect x="120" y="40" width="56" height="400" rx="26" fill="none" stroke="var(--line)" stroke-width="2"/>
+  <rect x="464" y="40" width="56" height="400" rx="26" fill="none" stroke="var(--line)" stroke-width="2"/>
+  <text x="148" y="466" text-anchor="middle" fill="var(--muted)" font-size="12">좌 트랙</text>
+  <text x="492" y="466" text-anchor="middle" fill="var(--muted)" font-size="12">우 트랙</text>
+
+  <!-- 섀시 본체 -->
+  <rect x="184" y="48" width="272" height="384" rx="8" fill="none" stroke="var(--ink)" stroke-width="2"/>
+  <text x="320" y="34" text-anchor="middle" fill="var(--muted)" font-size="12">▲ 앞 (웨지 노즈 방향)</text>
+
+  <!-- CoreS3 (앞) -->
+  <rect x="236" y="70" width="168" height="110" rx="8" fill="none" stroke="var(--cyan)" stroke-width="2"/>
+  <text x="320" y="118" text-anchor="middle" fill="var(--cyan)" font-weight="bold">CoreS3</text>
+  <text x="320" y="138" text-anchor="middle" fill="var(--muted)" font-size="12">콕핏 (스타키 착좌)</text>
+
+  <!-- TB6612 (중앙) -->
+  <rect x="256" y="216" width="128" height="72" rx="8" fill="none" stroke="var(--magenta)" stroke-width="2"/>
+  <text x="320" y="248" text-anchor="middle" fill="var(--magenta)" font-weight="bold">TB6612</text>
+  <text x="320" y="268" text-anchor="middle" fill="var(--muted)" font-size="12">모터 전선이 닿는 중간</text>
+
+  <!-- 모터 (좌우, 뒤쪽) -->
+  <rect x="190" y="300" width="56" height="88" rx="6" fill="none" stroke="var(--line)" stroke-width="1.5"/>
+  <text x="218" y="340" text-anchor="middle" fill="var(--ink)" font-size="12">좌</text>
+  <text x="218" y="356" text-anchor="middle" fill="var(--ink)" font-size="12">모터</text>
+  <rect x="394" y="300" width="56" height="88" rx="6" fill="none" stroke="var(--line)" stroke-width="1.5"/>
+  <text x="422" y="340" text-anchor="middle" fill="var(--ink)" font-size="12">우</text>
+  <text x="422" y="356" text-anchor="middle" fill="var(--ink)" font-size="12">모터</text>
+  <!-- 모터 전선: 위(안쪽)로 -->
+  <polyline points="232,300 252,282" fill="none" stroke="var(--ink)" stroke-width="2"/>
+  <polyline points="408,300 388,282" fill="none" stroke="var(--ink)" stroke-width="2"/>
+  <text x="320" y="306" text-anchor="middle" fill="var(--muted)" font-size="11">전선은 위쪽(안쪽)으로</text>
+
+  <!-- 배터리 (뒤) -->
+  <rect x="236" y="396" width="168" height="30" rx="6" fill="none" stroke="var(--red)" stroke-width="2"/>
+  <text x="320" y="416" text-anchor="middle" fill="var(--red)" font-size="12.5" font-weight="bold">18650 ×2 홀더 (교체 쉬운 방향)</text>
+  <text x="320" y="452" text-anchor="middle" fill="var(--muted)" font-size="12">▼ 뒤 (오픈 베드 · 간식 적재)</text>
+</svg>
+</div>
+<figcaption>섀시 탑뷰 배치: 앞 CoreS3(콕핏) → 중앙 TB6612 → 뒤 배터리. 모터 전선은 안쪽 위로.</figcaption>
+</figure>
+
+<h2><span class="no">03</span>배선도</h2>
 
 <figure>
 <div class="diagram">
@@ -230,7 +291,7 @@ GPIO는 ON/OFF밖에 못 합니다. 그런데 초당 수천 번 껐다 켰다 �
 ④ 첫 테스트는 반드시 <b>차체 뒤집어 바퀴를 공중에</b> 띄우고 — 데드맨이 검증되기 전까지 바닥 주행 금지.</p>
 </div>
 
-<h2><span class="no">03</span>조립 순서</h2>
+<h2><span class="no">04</span>배선 순서</h2>
 <ol class="steps">
 <li><b class="t">벤치 준비</b><p>TP101을 뒤집어 바퀴를 공중에 띄웁니다. 배터리는 홀더에서 빼둡니다.</p></li>
 <li><b class="t">TB6612 로직 묶음 배선</b><p>VCC·STBY·PWMA·PWMB 네 핀을 전부 CoreS3 3V3에 묶습니다.</p>
@@ -242,7 +303,7 @@ GPIO는 ON/OFF밖에 못 합니다. 그런데 초당 수천 번 껐다 켰다 �
 <li><b class="t">드라이브 테스트</b><p>drive 펌웨어가 올라간 뒤: 대시보드 WASD 패드 → 바퀴가 공중에서 도는지, <b>버튼을 떼면 300ms 안에 멈추는지(데드맨)</b> 확인. 이게 통과해야 바닥 주행 허가입니다.</p></li>
 </ol>
 
-<h2><span class="no">04</span>전원 켜기 전 체크리스트</h2>
+<h2><span class="no">05</span>전원 켜기 전 체크리스트</h2>
 <ul class="check">
 <li>빨간 선(7.4V)이 VM 외엔 아무 데도 안 닿는다</li>
 <li>VCC·STBY·PWMA·PWMB 전부 3.3V에 묶였다</li>
