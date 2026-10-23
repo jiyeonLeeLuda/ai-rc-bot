@@ -115,7 +115,7 @@ GPIO는 ON/OFF밖에 못 합니다. 그런데 초당 수천 번 껐다 켰다 �
   <div class="part"><b>TB6612FNG ×2 (1개만 사용)</b><span>모터 드라이버. 1개가 모터 2채널(A·B)을 담당하므로 <b>이번엔 1개면 충분</b>, 나머지는 예비.</span></div>
   <div class="part"><b>18650 ×2 + 홀더</b><span>모터 전용 전원. 직렬 7.4V(완충 8.4V). <b>C3에 직결 절대 금지.</b></span></div>
   <div class="part"><b>ESP32-C3 슈퍼미니</b><span>차량의 두뇌. Wi-Fi로 조종실 서버에 직접 접속해 drive 명령을 받습니다. CoreS3(스타키)는 차량과 <b>전선 연결 없음</b> — 콕핏에 앉기만.</span></div>
-  <div class="part"><b>⚠ 벅 컨버터 (추가 구매 필요)</b><span>C3는 5V/3.3V만 먹습니다(7.4V 직결 시 즉사). 최종 탑재엔 7.4V→5V 스텝다운 모듈(mini-360 등) 필요. 그 전 테스트는 USB 보조배터리로 가능.</span></div>
+  <div class="part"><b>벅 컨버터 SD-0516 (구매 완료)</b><span>C3는 5V/3.3V만 먹습니다(7.4V 직결 시 즉사). 고정 5V 출력·연속 1.6A — 조정 작업 불필요. IN+에 배터리 ＋, OUT+를 C3 5V 핀에. <b>입력 하한 7V</b>: 팩 전압이 7.2V쯤 되면 충전 타이밍입니다.</span></div>
 </div>
 
 <h2><span class="no">02</span>기계 조립 — 상자에서 책상까지</h2>
@@ -193,8 +193,8 @@ GPIO는 ON/OFF밖에 못 합니다. 그런데 초당 수천 번 껐다 켰다 �
 
   <!-- 벅 컨버터 -->
   <rect x="30" y="196" width="210" height="56" rx="8" fill="none" stroke="var(--amber)" stroke-width="1.5"/>
-  <text x="135" y="220" text-anchor="middle" fill="var(--amber)" font-weight="bold">벅 컨버터 7.4V→5V</text>
-  <text x="135" y="240" text-anchor="middle" fill="var(--muted)" font-size="11.5">(테스트는 USB 보조배터리로 대체 가능)</text>
+  <text x="135" y="220" text-anchor="middle" fill="var(--amber)" font-weight="bold">SD-0516 벅 7.4V→5V 고정</text>
+  <text x="135" y="240" text-anchor="middle" fill="var(--muted)" font-size="11.5">IN+/IN− ← 배터리, OUT+/OUT− → C3</text>
   <polyline points="258,106 258,224 244,224" fill="none" stroke="var(--red)" stroke-width="2.5"/>
   <polyline points="135,256 135,296" fill="none" stroke="var(--amber)" stroke-width="2.5"/>
   <text x="152" y="282" fill="var(--amber)" font-size="12">5V</text>
@@ -289,7 +289,7 @@ GPIO는 ON/OFF밖에 못 합니다. 그런데 초당 수천 번 껐다 켰다 �
 <tr><td>VCC · STBY · PWMA · PWMB</td><td>C3 3V3</td><td><span class="tag t-33">로직</span></td><td>칩 로직 전원 + 항상 깨어있음 + 속도핀 항상 허용</td></tr>
 <tr><td>AIN1 / AIN2</td><td>GPIO3 / GPIO4</td><td><span class="tag t-sig">신호</span></td><td>왼쪽 모터 방향+속도 (PWM)</td></tr>
 <tr><td>BIN1 / BIN2</td><td>GPIO5 / GPIO6</td><td><span class="tag t-sig2">신호</span></td><td>오른쪽 모터 방향+속도 (PWM)</td></tr>
-<tr><td>(C3) 5V</td><td>벅 컨버터 OUT ← 배터리 ＋</td><td><span class="tag t-pwr">전원</span></td><td>C3 전원. 7.4V 직결 절대 금지. 테스트는 USB로 대체</td></tr>
+<tr><td>(C3) 5V</td><td>SD-0516 OUT+ ← IN+ ← 배터리 ＋ (OUT−/IN−는 GND)</td><td><span class="tag t-pwr">전원</span></td><td>C3 전원. 고정 5V라 조정 불필요. 7.4V 직결 절대 금지. 테스트는 USB로 대체</td></tr>
 <tr><td>A01 / A02</td><td>왼쪽 모터 선 2가닥</td><td><span class="tag t-pwr">출력</span></td><td>방향이 반대면 두 선을 서로 바꾸면 됨</td></tr>
 <tr><td>B01 / B02</td><td>오른쪽 모터 선 2가닥</td><td><span class="tag t-pwr">출력</span></td><td>〃</td></tr>
 </tbody>
@@ -321,10 +321,12 @@ GPIO는 ON/OFF밖에 못 합니다. 그런데 초당 수천 번 껐다 켰다 �
 <li>빨간 선(7.4V)이 VM과 벅 컨버터 IN 외엔 아무 데도 안 닿는다</li>
 <li>VCC·STBY·PWMA·PWMB 전부 3.3V에 묶였다</li>
 <li>C3 GND ↔ TB6612 GND 연결됐다 (공통 기준선)</li>
-<li>C3의 5V에 7.4V가 직결되지 않았다 (벅 컨버터 또는 USB 전원)</li>
+<li>C3의 5V에 7.4V가 직결되지 않았다 (SD-0516 OUT+ 또는 USB 전원)</li>
+<li>SD-0516 IN/OUT 방향이 맞다 (IN+ ← 배터리 ＋, OUT+ → C3 5V — 뒤집으면 C3 즉사)</li>
 <li>바퀴가 공중에 떠 있다</li>
 <li>18650이 2개다 (3개 아님)</li>
 </ul>
 
-<p class="why" style="margin-top:40px">다음 단계: drive 펌웨어(capabilities에 "drive" 추가 + PWM 변환 + ttlMs 데드맨) — 서버·대시보드·프로토콜은 이미 준비돼 있습니다.</p>
+<p class="why" style="margin-top:40px">다음 단계: drive 펌웨어(capabilities에 "drive" 추가 + PWM 변환 + ttlMs 데드맨) — 서버·대시보드·프로토콜은 이미 준비돼 있습니다.
+펌웨어 후속 과제: 배터리 전압을 분압해 ADC로 읽고 <b>7.2V 이하에서 주행 정지 + LED 경고</b>하는 저전압 컷오프 — SD-0516의 입력 하한(7V)에 닿기 전에 소프트웨어가 먼저 알립니다.</p>
 </main>
