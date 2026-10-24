@@ -31,6 +31,22 @@ static WebSocketsClient webSocket;
 static bool     g_connected = false;
 static uint32_t g_lastStateMs = 0;
 
+// --- 멀티 네트워크 (우선순위 순) ---
+// 부팅 시 스캔해서 목록의 앞 순서부터 보이는 네트워크에 접속한다.
+// 집은 고정 IP(DHCP 유실 우회), 핫스팟은 DHCP. cockpit 서버 IP도 네트워크별로 다름.
+struct NetConfig {
+  const char* ssid;
+  const char* pass;
+  const char* cockpitHost;
+  bool        useStaticIp;
+};
+static const NetConfig NETWORKS[] = {
+  { WIFI_SSID,  WIFI_PASS,  COCKPIT_HOST,  true  },   // 1순위: 집
+  { WIFI2_SSID, WIFI2_PASS, COCKPIT2_HOST, false },   // 2순위: 폰 핫스팟
+};
+static const int  NETWORK_COUNT = sizeof(NETWORKS) / sizeof(NETWORKS[0]);
+static const char* g_cockpitHost = COCKPIT_HOST;   // connectWifi()에서 확정
+
 // --- LED 헬퍼 (active-low) ---
 static inline void ledOn()  { digitalWrite(PIN_LED, LOW); }
 static inline void ledOff() { digitalWrite(PIN_LED, HIGH); }
@@ -88,6 +104,12 @@ static void handleMessage(uint8_t* payload, size_t length) {
     float left  = doc["left"]  | 0.0f;
     float right = doc["right"] | 0.0f;
     uint32_t ttlMs = doc["ttlMs"] | 0;
+    // 수신 확인용(스팸 방지 500ms 스로틀). 주행 검증 끝나면 지워도 됨.
+    static uint32_t lastLogMs = 0;
+    if (millis() - lastLogMs > 500) {
+      lastLogMs = millis();
+      Serial.printf("[vehicle] <- drive L=%.2f R=%.2f ttl=%lu\n", left, right, (unsigned long)ttlMs);
+    }
     drive::set(left, right, ttlMs);   // ttlMs 후 데드맨 자동 정지
   } else {
     // tts.chunk / sequence / hello.ack / listen 등 — 이 개체엔 화면·스피커가 없어 무시.
@@ -119,16 +141,66 @@ static void onWsEvent(WStype_t type, uint8_t* payload, size_t length) {
   }
 }
 
+// 스캔 결과에서 우선순위가 가장 높은 등록 네트워크를 고른다. 없으면 -1.
+static int pickNetwork() {
+  Serial.println("[vehicle] WiFi scan...");
+  int n = WiFi.scanNetworks();
+  int best = -1;
+  for (int i = 0; i < n; i++) {
+    for (int k = 0; k < NETWORK_COUNT; k++) {
+      if (WiFi.SSID(i) == NETWORKS[k].ssid && (best < 0 || k < best)) best = k;
+    }
+    Serial.printf("[vehicle]   %s (ch%d, %ddBm)\n",
+                  WiFi.SSID(i).c_str(), WiFi.channel(i), WiFi.RSSI(i));
+  }
+  WiFi.scanDelete();
+  return best;
+}
+
 static void connectWifi() {
-  Serial.printf("[vehicle] WiFi connecting to %s\n", WIFI_SSID);
   WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
+
+  // C3 슈퍼미니 안테나 매칭 문제 회피: 기본 TX 출력(19.5dBm)에서는 접속 자체가
+  // 실패하는 개체가 많다. 8.5dBm으로 낮추면 붙는 것이 알려진 해법.
+  WiFi.setTxPower(WIFI_POWER_8_5dBm);
+
+  // 등록된 네트워크가 보일 때까지 스캔 반복 (1순위 우선)
+  int pick;
+  while ((pick = pickNetwork()) < 0) {
+    Serial.println("[vehicle] 등록된 네트워크 없음 — 3초 후 재스캔");
+    for (int i = 0; i < 30; i++) { updateStatusLed(); delay(100); }
+  }
+  const NetConfig& net = NETWORKS[pick];
+  g_cockpitHost = net.cockpitHost;
+
+  if (net.useStaticIp) {
+    // DHCP 우회(고정 IP): 이 C3 개체는 송신이 약해 핸드셰이크는 재시도로 통과하지만
+    // DHCP 요청이 유실돼 GOT_IP까지 못 간다(집 공유기 실측). 고정 IP로 DHCP 단계를 제거.
+    WiFi.config(IPAddress(192, 168, 0, 223), IPAddress(192, 168, 0, 1),
+                IPAddress(255, 255, 255, 0), IPAddress(192, 168, 0, 1));
+  }
+
+  Serial.printf("[vehicle] WiFi connecting to %s (%s, cockpit=%s)\n",
+                net.ssid, net.useStaticIp ? "static IP" : "DHCP", g_cockpitHost);
+  WiFi.begin(net.ssid, net.pass);
+  // begin() 이전 호출은 드라이버 기동 전이라 무시되는 개체가 있어 직후에 한 번 더.
+  WiFi.setTxPower(WIFI_POWER_8_5dBm);
+  uint32_t t0 = millis();
   while (WiFi.status() != WL_CONNECTED) {
     updateStatusLed();   // 연결 중 점멸
     delay(100);
+    if (millis() - t0 > 3000) {   // 3초마다 상태 코드만 출력.
+      // 수동 re-begin은 금지: 핸드셰이크 재시도로 STA_CONNECTED까지 간 연결을
+      // DHCP(GOT_IP) 직전에 끊어버리는 자충수였음(reason 8 ASSOC_LEAVE 실측).
+      // 재접속은 코어의 자동 reconnect에 맡긴다.
+      Serial.printf("[vehicle] WiFi status=%d (0=IDLE 1=NO_SSID 4=CONN_FAIL 6=WRONG_PW/DISCONN)\n",
+                    WiFi.status());
+      t0 = millis();
+    }
   }
   WiFi.setSleep(false);  // modem sleep OFF: 실시간 제어 지연(수백 ms) 방지
-  Serial.printf("[vehicle] WiFi connected: %s\n", WiFi.localIP().toString().c_str());
+  Serial.printf("[vehicle] WiFi connected: %s (RSSI %ddBm)\n",
+                WiFi.localIP().toString().c_str(), WiFi.RSSI());
 }
 
 void setup() {
@@ -143,10 +215,10 @@ void setup() {
 
   connectWifi();
 
-  webSocket.begin(COCKPIT_HOST, COCKPIT_PORT, "/robot");
+  webSocket.begin(g_cockpitHost, COCKPIT_PORT, "/robot");
   webSocket.onEvent(onWsEvent);
   webSocket.setReconnectInterval(RECONNECT_MS);   // 끊기면 5초 후 재접속
-  Serial.printf("[vehicle] WS target ws://%s:%d/robot\n", COCKPIT_HOST, COCKPIT_PORT);
+  Serial.printf("[vehicle] WS target ws://%s:%d/robot\n", g_cockpitHost, COCKPIT_PORT);
 }
 
 void loop() {

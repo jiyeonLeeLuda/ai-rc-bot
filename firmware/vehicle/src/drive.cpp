@@ -20,8 +20,12 @@ const int CH_AIN2 = 1;
 const int CH_BIN1 = 2;
 const int CH_BIN2 = 3;
 
-const uint32_t PWM_FREQ_HZ  = 20000;  // 20kHz: 가청 모터 소음 저감
-const uint8_t  PWM_RES_BITS = 10;     // 0~1023. 80MHz/20kHz=4000 ≥ 1024 → 유효
+// 저duty 토크 확보를 위해 주파수를 낮춤(TP101 기어모터 무부하 시작 임계 실측:
+// 20kHz→0.9, 1kHz→0.8). 200Hz로 ON 시간 동안 코일 전류를 충분히 채운다.
+// 구동 중 가청 소음은 감수 — 무소음이 필요해지면 주파수 대신 전압(2S→3S 불가,
+// 승압)이나 모터 교체로 풀어야 함.
+const uint32_t PWM_FREQ_HZ  = 200;
+const uint8_t  PWM_RES_BITS = 10;     // 0~1023. 80MHz/200Hz=400000 ≥ 1024 → 유효
 const uint32_t PWM_MAX = (1u << PWM_RES_BITS) - 1;
 
 bool     s_began = false;
@@ -52,11 +56,18 @@ void pwmWrite(int pin, int channel, uint32_t duty) {
 #endif
 }
 
+// 데드밴드 보정: TP101 기어모터는 무부하에서도 duty 0.5 미만이면 안 돈다(200Hz 실측).
+// 명령 |v|∈(0,1]을 실듀티 [DEADBAND_MIN, 1.0]으로 선형 매핑해 저속 명령도 실제로 움직이게 한다.
+const float DEADBAND_MIN = 0.55f;   // 시작 임계 0.5 + 부하 여유
+const float INPUT_EPS    = 0.05f;   // 이 미만은 정지 의도로 간주
+
 // 모터 한 개(IN1/IN2 두 핀)에 방향+듀티 적용.
 void applyMotor(int pinIn1, int chIn1, int pinIn2, int chIn2, float v) {
   if (v >  1.0f) v =  1.0f;
   if (v < -1.0f) v = -1.0f;
-  uint32_t duty = (uint32_t)(fabsf(v) * PWM_MAX + 0.5f);
+  if (fabsf(v) < INPUT_EPS) v = 0.0f;
+  float mag = (v == 0.0f) ? 0.0f : DEADBAND_MIN + fabsf(v) * (1.0f - DEADBAND_MIN);
+  uint32_t duty = (uint32_t)(mag * PWM_MAX + 0.5f);
   if (v > 0.0f) {          // 전진: IN1 PWM / IN2 LOW
     pwmWrite(pinIn1, chIn1, duty);
     pwmWrite(pinIn2, chIn2, 0);
@@ -81,10 +92,29 @@ void begin() {
   Serial.println("[vehicle] drive: TB6612 PWM init (GPIO3-6, LEDC ch0-3, 20kHz 10bit)");
 }
 
+// --- 차량 방향 설정 (배선 바꾸지 않고 여기서 보정) ---
+// 사용자가 정한 차량 "앞" 기준으로 W가 전진이 되도록 맞춘다.
+//   DIR_SIGN: 각 모터 회전 방향 반전 (-1 = 반전)
+//   SWAP_LR : 좌/우 모터 할당 교체 (앞뒤를 뒤집으면 좌우도 거울상이 되므로 보통 함께 필요)
+const float DIR_SIGN_A = -1.0f;   // A채널(물리 배선 기준 모터1)
+const float DIR_SIGN_B = -1.0f;   // B채널(물리 배선 기준 모터2)
+const bool  SWAP_LR    = true;    // 앞 기준이 180° 뒤집혔으므로 좌우도 교체
+
+// 좌우 모터 개체차 트림 (1.0 = 보정 없음).
+// 왼쪽 드리프트의 주원인은 왼쪽 트랙 링크 1칸 과다(헐렁→슬립)로 판명 — 트랙 수리 후
+// 재보정 예정이라 1.0으로 리셋. 수리 후 남는 모터 개체차만큼만 TRIM_R을 내릴 것
+// (공중 0.7 duty 비교에서 왼쪽이 약간 느렸으므로 0.90~0.95 예상).
+const float TRIM_L = 1.0f;
+const float TRIM_R = 1.0f;
+
 void set(float left, float right, uint32_t ttlMs) {
   if (!s_began) return;
-  applyMotor(PIN_AIN1, CH_AIN1, PIN_AIN2, CH_AIN2, left);
-  applyMotor(PIN_BIN1, CH_BIN1, PIN_BIN2, CH_BIN2, right);
+  left  *= TRIM_L;
+  right *= TRIM_R;
+  float a = (SWAP_LR ? right : left)  * DIR_SIGN_A;
+  float b = (SWAP_LR ? left  : right) * DIR_SIGN_B;
+  applyMotor(PIN_AIN1, CH_AIN1, PIN_AIN2, CH_AIN2, a);
+  applyMotor(PIN_BIN1, CH_BIN1, PIN_BIN2, CH_BIN2, b);
   s_expiryMs = millis() + ttlMs;
   s_active = true;
 }
