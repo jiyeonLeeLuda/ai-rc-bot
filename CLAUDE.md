@@ -35,7 +35,11 @@ M5Stack CoreS3 기반 자작 스타크챤(StackChan) + 분리형 탱크 차량 "
 - Wi-Fi는 **2.4GHz만** 가능
 - SD카드: FAT32 + **MBR 파티션**, 루트에 `wifi.txt`(SSID/PW 2줄), `apikey.txt`(OpenAI키/VoiceVox키/OpenAI키 3줄). 메이저 브랜드 32GB 이하 카드 권장
 - CoreS3 다운로드 모드: 뒷면 리셋 버튼 3초 홀드 → 초록 LED
-- macOS: M5Burner는 게이트키퍼 "그래도 열기" 필요. 포트 확인 `ls /dev/tty.usbmodem*`
+- macOS: M5Burner는 게이트키퍼 "그래도 열기" 필요. 포트 확인 `ls /dev/cu.usbmodem*` (tty 글롭은 놓칠 수 있음)
+- **ESP32-C3 슈퍼미니 Wi-Fi 함정 (2026-10-24 실측)**: 안테나가 약해 ① WPA 핸드셰이크가 reason 204(HANDSHAKE_TIMEOUT)로 1~2회 실패 후 재시도로 붙고 ② **DHCP 요청이 유실돼 GOT_IP까지 못 감** → 해법 = `WiFi.setTxPower(WIFI_POWER_8_5dBm)`(begin 직후) + **고정 IP 192.168.0.223** (`WiFi.config`, 게이트웨이 192.168.0.1). 접속 대기 중 수동 re-begin 금지(붙으려는 연결을 끊음). 공유기에서 .223을 DHCP 풀에서 제외하거나 예약해두면 충돌 방지
+- 차량 플래시: `~/.venvs/platformio/bin/pio run -e esp32-c3 -t upload --upload-port /dev/cu.usbmodem1101` (PlatformIO CLI는 전용 venv `~/.venvs/platformio`에 설치됨)
+- **TP101 모터 PWM 튜닝 (2026-10-24 실측)**: 무부하 시작 임계 duty = 20kHz→0.9 / 1kHz→0.8 / **200Hz→0.5**. 20kHz 무소음은 포기, 200Hz + 데드밴드 보정(명령 0~1 → 실듀티 0.55~1.0 매핑)으로 확정. 구동 중 가청음 있음
+- **VM 무전원 상태에서 drive 명령 금지**: 배터리 없이 TB6612에 PWM을 넣으면 칩이 C3 3.3V에서 역급전으로 전류를 끌어 **C3가 USB째 다운**됨(실측 재현). 모터 테스트 전 배터리 장착 필수. USB와 배터리(VM) 동시 연결은 OK — 금지 조합은 USB+SD-0516 OUT+뿐
 
 ## 3. 로드맵 (각 단계가 그대로 완성품)
 
@@ -44,7 +48,7 @@ M5Stack CoreS3 기반 자작 스타크챤(StackChan) + 분리형 탱크 차량 "
 | 1 | 표준 스타크챤: 얼굴 + AI 음성 대화 + 목 2축 | **음성 대화 동작 확인** (서보 셸 미장착) |
 | 1.5 | 도킹 크래들(레고): 홈 치수·자석 위치 = 마스터 규격. 책상 지정석 겸 충전 스테이션 | 미착수 |
 | 2 | ~~유선 제어~~ → **3단계 직행으로 변경** (GPIO2 카메라 충돌 + 차량 독립성) | 건너뜀 |
-| 3 | **무선**: 차량에 ESP32-C3 탑재(TB6612: GPIO3~6), cockpit WS 프로토콜 재사용. 리드 스위치(GPIO7)·LED(GPIO10)는 후속 | **진행 중** — 섀시 조립 완료, 모터 납땜 중. 차량 펌웨어 `firmware/vehicle/`. 조립 가이드 v2 = docs/ |
+| 3 | **무선**: 차량에 ESP32-C3 탑재(TB6612: GPIO3~6), cockpit WS 프로토콜 재사용. 리드 스위치(GPIO7)·LED(GPIO10)는 후속 | **✅ 첫 주행 성공** (2026-10-24) — 올-브레드보드 배선, 배터리 단독 구동, 대시보드 WASD 바닥 주행·데드맨 검증 완료. 후속: 저전압 컷오프(ADC 7.2V), 리드 스위치·WS2812B, 외장(골판지 목업 docs/cardboard-pattern) |
 | 4 | 소프트웨어 확장: 미러 모드 고도화, 사무실 모드, 워치 연동 | **미러 모드 서버 이관 완료** |
 
 ### 조종실(cockpit) 아키텍처 — 2026-10-22 실기 검증 완료
