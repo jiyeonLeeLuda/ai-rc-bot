@@ -40,8 +40,12 @@ void pwmInit(int pin, int channel) {
 #if ESP_ARDUINO_VERSION_MAJOR >= 3
   (void)channel;
   ledcAttach(pin, PWM_FREQ_HZ, PWM_RES_BITS);
+  ledcWrite(pin, 0);
 #else
+  // duty를 0으로 만든 "뒤에" 핀을 붙인다 — attach를 먼저 하면 초기화 전
+  // 쓰레기 듀티가 찰나 모터로 나가 리셋 때마다 바퀴가 꿈틀한다(실측).
   ledcSetup(channel, PWM_FREQ_HZ, PWM_RES_BITS);
+  ledcWrite(channel, 0);
   ledcAttachPin(pin, channel);
 #endif
 }
@@ -89,7 +93,8 @@ void begin() {
   pwmInit(PIN_BIN2, CH_BIN2);
   s_began = true;
   stop();   // 부팅 기본값 = 정지
-  Serial.println("[vehicle] drive: TB6612 PWM init (GPIO3-6, LEDC ch0-3, 20kHz 10bit)");
+  Serial.printf("[vehicle] drive: TB6612 PWM init (GPIO3-6, LEDC ch0-3, %luHz 10bit)\n",
+                (unsigned long)PWM_FREQ_HZ);
 }
 
 // --- 차량 방향 설정 (배선 바꾸지 않고 여기서 보정) ---
@@ -137,5 +142,28 @@ void stop() {
 }
 
 bool isActive() { return s_active; }
+
+void beep(uint16_t freqHz, uint16_t ms) {
+  if (!s_began || s_active) return;   // 주행 중엔 비프 금지 (타이머 공유 간섭 방지)
+
+  // A채널(ch0)의 LEDC 주파수를 잠시 가청 대역으로 바꿔 왼쪽 모터 코일을 울린다.
+  // 고주파(≥1kHz)에서 모터 구동 임계는 duty 0.8 이상(실측)이라, 30%는
+  // 바퀴를 못 돌리고 코일만 울린다. (6%는 무음에 가까웠음 — 실측으로 상향)
+  // 주의: ch0·ch1은 같은 타이머라 주파수가 함께 바뀌지만 ch1은 duty 0이라 무음.
+  const uint32_t BEEP_DUTY = 300;   // /1023 ≈ 29%
+#if ESP_ARDUINO_VERSION_MAJOR >= 3
+  ledcChangeFrequency(PIN_AIN1, freqHz, PWM_RES_BITS);
+  ledcWrite(PIN_AIN1, BEEP_DUTY);
+  delay(ms);
+  ledcWrite(PIN_AIN1, 0);
+  ledcChangeFrequency(PIN_AIN1, PWM_FREQ_HZ, PWM_RES_BITS);
+#else
+  ledcSetup(CH_AIN1, freqHz, PWM_RES_BITS);
+  ledcWrite(CH_AIN1, BEEP_DUTY);
+  delay(ms);
+  ledcWrite(CH_AIN1, 0);
+  ledcSetup(CH_AIN1, PWM_FREQ_HZ, PWM_RES_BITS);   // 주행용 200Hz 복원
+#endif
+}
 
 }  // namespace drive

@@ -27,4 +27,8 @@ void stop();
 // ttl 유효 구간이면 true (state.mode="driving" 판정).
 bool isActive();
 
+// 모터 코일을 스피커로 쓰는 비프음 (버저 없음). 움직이지 않는 미소 듀티로
+// 가청 주파수 PWM을 내보낸다. 블로킹(ms 동안 delay) — 주행 중이면 무시된다.
+void beep(uint16_t freqHz, uint16_t ms);
+
 }  // namespace drive

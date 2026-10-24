@@ -124,11 +124,16 @@ static void onWsEvent(WStype_t type, uint8_t* payload, size_t length) {
       Serial.printf("[vehicle] connected: %s\n", (char*)payload);
       sendHello();
       g_lastStateMs = 0;   // 접속 직후 state 즉시 송신 유도
+      drive::beep(1500, 80); drive::beep(2000, 80);   // 접속음: 삑삑↑
       break;
     case WStype_DISCONNECTED:
+      if (g_connected) {                               // 끊김 전이 시에만 1회
+        drive::stop();   // 연결 끊기면 즉시 정지(안전) — 비프보다 먼저
+        drive::beep(600, 250);                         // 끊김음: 삐–↓
+        Serial.println("[vehicle] disconnected");
+      }
       g_connected = false;
-      drive::stop();   // 연결 끊기면 즉시 정지(안전)
-      Serial.println("[vehicle] disconnected");
+      drive::stop();
       break;
     case WStype_TEXT:
       handleMessage(payload, length);
@@ -212,6 +217,16 @@ void setup() {
   ledOff();
 
   drive::begin();   // 부팅 시 모터 정지 보장
+
+  // 저전압 대리 경보: 배터리가 바닥나면 전압 강하로 브라운아웃 리셋이 발생한다.
+  // 전압 분압 저항이 없어 직접 측정은 불가 — 리셋 사유로 간접 감지해 경고음.
+  // (저항 입수 후 ADC 측정 + 7.2V 컷오프로 승격 예정)
+  if (esp_reset_reason() == ESP_RST_BROWNOUT) {
+    Serial.println("[vehicle] !! BROWNOUT reset — 배터리 전압 부족 의심. 충전하세요");
+    for (int i = 0; i < 3; i++) { drive::beep(400, 300); delay(150); }   // 경고: 삐–삐–삐–
+  } else {
+    drive::beep(1000, 100);   // 부팅음: 삑
+  }
 
   connectWifi();
 
