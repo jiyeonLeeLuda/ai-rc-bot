@@ -16,6 +16,7 @@ import { fetchRobots, postChat, postSpeak, type Robot } from "@/lib/gateway";
 import RobotCard from "@/components/RobotCard";
 import ReactionPad from "@/components/ReactionPad";
 import DrivePad from "@/components/DrivePad";
+import CameraView from "@/components/CameraView";
 import styles from "./page.module.css";
 
 const POLL_INTERVAL_MS = 3000; // 로봇 목록 폴링 주기
@@ -56,6 +57,8 @@ export default function DashboardPage() {
   // 능력 기반 라우팅: 표정·발화는 face 로봇에게, 주행은 drive 로봇에게.
   const faceRobot = robots.find((r) => r.capabilities.includes("face")) ?? null;
   const driveRobot = robots.find((r) => r.capabilities.includes("drive")) ?? null;
+  // FPV: 카메라 달린 로봇(스타키). 탑승모드에선 앞을 보므로 주행 뷰가 된다.
+  const cameraRobot = robots.find((r) => r.capabilities.includes("camera")) ?? null;
 
   /** Speak: 입력한 문장을 그대로 발화 */
   const handleSay = async () => {
@@ -133,6 +136,9 @@ export default function DashboardPage() {
           </div>
 
           <div className={styles.controlGrid}>
+            {/* FPV 주행 뷰 — camera 로봇 */}
+            {cameraRobot && <CameraView robotId={cameraRobot.robotId} />}
+
             {/* 표정 — face 로봇 */}
             {faceRobot && <ReactionPad robotId={faceRobot.robotId} />}
 

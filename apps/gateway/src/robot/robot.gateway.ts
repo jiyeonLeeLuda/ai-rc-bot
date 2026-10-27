@@ -19,6 +19,7 @@ import { RobotRegistryService } from './robot-registry.service';
 import { VoiceService } from '../voice/voice.service';
 import { VisionService } from '../vision/vision.service';
 import { SceneService } from '../scene/scene.service';
+import { CameraService } from '../camera/camera.service';
 
 @WebSocketGateway({ path: '/robot' })
 export class RobotGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -32,6 +33,7 @@ export class RobotGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private readonly voice: VoiceService,
     private readonly vision: VisionService,
     private readonly scenes: SceneService,
+    private readonly camera: CameraService,
   ) {}
 
   /** 새 WebSocket 연결. 이 시점엔 robotId가 없으므로 hello를 기다린다. */
@@ -52,6 +54,7 @@ export class RobotGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (robotId) {
       this.voice.cleanup(robotId);
       this.vision.cleanup(robotId);
+      this.camera.cleanup(robotId);
     }
     this.registry.unregister(client);
   }
@@ -110,7 +113,8 @@ export class RobotGateway implements OnGatewayConnection, OnGatewayDisconnect {
       case 'camera.frame': {
         const robotId = this.registry.getRobotIdBySocket(client);
         if (robotId) {
-          this.vision.handleFrame(robotId, msg);
+          this.camera.publish(robotId, msg);  // 대시보드 FPV 중계
+          this.vision.handleFrame(robotId, msg);  // 미러모드 표정 분류
         }
         break;
       }

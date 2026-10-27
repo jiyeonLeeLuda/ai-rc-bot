@@ -13,13 +13,16 @@ import {
   BadRequestException,
   HttpCode,
   HttpStatus,
+  Sse,
 } from '@nestjs/common';
+import { map, type Observable } from 'rxjs';
 import { DriveCommand } from '@snack-express/protocol';
 import { RobotRegistryService } from '../robot/robot-registry.service';
 import { ReactionService } from '../reaction/reaction.service';
 import { DriveService } from '../drive/drive.service';
 import { SceneService } from '../scene/scene.service';
 import { VoiceService } from '../voice/voice.service';
+import { CameraService } from '../camera/camera.service';
 
 @Controller('robots')
 export class ApiController {
@@ -29,7 +32,36 @@ export class ApiController {
     private readonly drive: DriveService,
     private readonly scenes: SceneService,
     private readonly voice: VoiceService,
+    private readonly camera: CameraService,
   ) {}
+
+  /**
+   * GET /robots/:id/camera/stream — FPV 카메라 SSE 스트림.
+   * 로봇이 올리는 프레임을 data: URL(JPEG)로 실시간 push. 브라우저는 EventSource로 구독.
+   * 탑승모드에선 스타키가 앞을 보므로 이 스트림이 1인칭 주행 뷰가 된다.
+   */
+  @Sse(':id/camera/stream')
+  cameraStream(@Param('id') robotId: string): Observable<{ data: string }> {
+    return this.camera.stream(robotId).pipe(
+      map((f) => ({
+        // SSE data 필드는 문자열 — JSON으로 직렬화해 보낸다.
+        data: JSON.stringify({
+          src: `data:image/jpeg;base64,${f.data}`,
+          width: f.width,
+          height: f.height,
+          seq: f.seq,
+          ts: f.ts,
+        }),
+      })),
+    );
+  }
+
+  /** GET /robots/:id/camera/latest — 최신 프레임 1장 (SSE 미지원 환경 폴백). */
+  @Get(':id/camera/latest')
+  cameraLatest(@Param('id') robotId: string): { src: string } | { src: null } {
+    const f = this.camera.getLatest(robotId);
+    return f ? { src: `data:image/jpeg;base64,${f.data}` } : { src: null };
+  }
 
   /**
    * POST /robots/scenes/:name — 멀티 로봇 씬 재생 (horn | driving-start | driving-end).

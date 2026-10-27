@@ -69,7 +69,12 @@ export class SceneService {
     this.logger.log('[scene] 주행모드 시작');
     const face = this.faceRobot('driving-start');
     if (!face) return;
-    // 'cool'(😎)은 CoreS3 얼굴 에셋 추가 전까지 neutral 폴백 — 말풍선 😎로 보완
+    // 선글라스(cool) + FPV 스트리밍 ON. 탑승모드에선 스타키가 앞을 보므로 주행 뷰가 된다.
+    this.registry.send(face, {
+      type: 'sequence',
+      id: `fpv-on-${Date.now()}`,
+      steps: [{ sound: 'fpv-on', durationMs: 100 }],
+    });
     await this.voice.speak(face, '주행모드 시작', 'cool');
   }
 
@@ -78,11 +83,14 @@ export class SceneService {
     this.logger.log('[scene] 주행모드 종료');
     const face = this.faceRobot('driving-end');
     if (!face) return;
-    // 선글라스는 표정과 독립인 오버레이라, 전용 마커로만 벗는다 (펌웨어 applyStep 참조)
+    // 선글라스 해제 + FPV 스트리밍 OFF (둘 다 전용 마커, 펌웨어 applyStep 참조)
     this.registry.send(face, {
       type: 'sequence',
-      id: `glasses-off-${Date.now()}`,
-      steps: [{ sound: 'glasses-off', durationMs: 100 }],
+      id: `drive-off-${Date.now()}`,
+      steps: [
+        { sound: 'glasses-off', durationMs: 60 },
+        { sound: 'fpv-off', durationMs: 60 },
+      ],
     });
     await this.voice.speak(face, '주행모드 종료!', 'neutral');
   }

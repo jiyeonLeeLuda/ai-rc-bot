@@ -13,6 +13,7 @@ import { VisionService } from './vision/vision.service';
 import { ReactionService } from './reaction/reaction.service';
 import { DriveService } from './drive/drive.service';
 import { SceneService } from './scene/scene.service';
+import { CameraService } from './camera/camera.service';
 import { ApiController } from './api/api.controller';
 
 @Module({
@@ -29,6 +30,7 @@ import { ApiController } from './api/api.controller';
     ReactionService,
     DriveService,
     SceneService,
+    CameraService,
   ],
 })
 export class AppModule {}

@@ -96,6 +96,11 @@ export async function postSpeak(robotId: string, text: string): Promise<void> {
   });
 }
 
+/** FPV 카메라 SSE 스트림 URL (EventSource로 구독). */
+export function cameraStreamUrl(robotId: string): string {
+  return `${BASE}/robots/${robotId}/camera/stream`;
+}
+
 /** 말 걸기: LLM이 로봇의 답변을 생성해 발화한다 (음성 턴과 대화 이력 공유). */
 export async function postChat(robotId: string, text: string): Promise<void> {
   await fetch(`${BASE}/robots/${robotId}/chat`, {
