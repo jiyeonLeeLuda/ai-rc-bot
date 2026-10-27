@@ -75,7 +75,8 @@ M5Stack CoreS3 기반 자작 스타크챤(StackChan) + 분리형 탱크 차량 "
   camera.frame을 CameraService가 SSE(`GET /robots/:id/camera/stream`)로 대시보드 중계, CameraView가 EventSource로 표시.
   펌웨어는 `fpvPoll()`(메인 루프, WS 태스크 블로킹 회피)이 200ms 주기 캡처, sound 마커 `fpv-on/off`로 토글
   (착좌/하차 씬이 자동 송신 + 대시보드 수동 토글 버튼). 미러 on이면 이중 캡처 스킵.
-  **SSE Subject는 로봇 disconnect 시 complete 금지**(재접속 탭 스트림 사망 버그 — 회귀 테스트로 수정 확인)
+  **SSE Subject는 로봇 disconnect 시 complete 금지**(재접속 탭 스트림 사망 버그 — 회귀 테스트로 수정 확인).
+  의도된 동작: 캡처가 메인 루프라 음성 턴(AudioWhisper Record ~3s) 동안 FPV 일시정지 — 기존 "음성 우선" 원칙과 동일 트레이드오프, 버그 아님
 - **내일 할 일**: ① 스타키 CoreS3 재플래시(FPV·선글라스·EyeFX 포함) → 대시보드 FPV 수동 토글로 검증
   ② 착좌 접점 실물 조립(자석+점퍼선) ③ 빵판 글루건 고정 후 전개도 치수(H·빵판 구간) 재측정
 - 다음 후보: 마이크 스트리밍(음성 턴 서버 이관), cockpit 설정 웹 UI화, SSE keepalive(네트워크 홉 생기면)
