@@ -4,18 +4,35 @@ M5Stack CoreS3 스타크챤 로봇의 두뇌를 서버로 옮긴 씬 클라이�
 로봇은 판단하지 않는다 — 표정·서보·센서 입출력만 하고, 모든 판단은 이 서버가 한다.
 
 ```
-[로봇 CoreS3/C++] ←WebSocket→ [gateway: NestJS] ←REST→ [dashboard: Next.js]
+[스타키 CoreS3] ─┐                      ┌─→ [dashboard: Next.js :3000]
+[탱크 차량 C3]  ─┴─WebSocket→ [gateway: NestJS :3001] ─REST─┘
                                     │
                                  OpenAI (STT·LLM·TTS·Vision)
 ```
+
+두 로봇(얼굴 담당 스타키 + 주행 담당 차량)이 같은 서버에 붙고, 대시보드의 통합
+컨트롤러가 능력(capabilities)에 따라 명령을 자동 분배한다. 착좌 → 주행모드 선글라스,
+클락션 같은 멀티 로봇 연출은 `apps/gateway`의 SceneService가 조율한다.
+
+## 리포 구성 (세트)
+
+이 프로젝트는 두 리포로 나뉜다:
+
+| 리포 | 내용 |
+|---|---|
+| **jiyeonLeeLuda/ai-rc-bot** (이 리포) | 조종실 서버·대시보드·프로토콜 + 차량(ESP32-C3) 펌웨어(`firmware/vehicle`) |
+| [**jiyeonLeeLuda/AI_StackChan_Ex**](https://github.com/jiyeonLeeLuda/AI_StackChan_Ex/tree/feature/cockpit-ws) `feature/cockpit-ws` | 스타키(CoreS3) 로봇 펌웨어 — WS 클라이언트, 미러모드, 선글라스/EyeFX 연출. ronron-gh 원본(MIT) 포크 |
+
+제작 가이드(부품 구매~첫 주행, 공유용): [`docs/build-guide-share.pdf`](docs/build-guide-share.pdf)
 
 ## 패키지
 
 | 경로 | 이름 | 역할 |
 |---|---|---|
 | `packages/protocol` | `@snack-express/protocol` | 로봇↔서버 메시지 스키마(zod) — **계약의 정본** |
-| `apps/gateway` | `@snack-express/gateway` | NestJS. 로봇 WS 접속(`:3001/robot`), 음성 파이프라인, 리액션 하달, 드라이브 중계 |
-| `apps/dashboard` | `@snack-express/dashboard` | Next.js(`:3000`). 로봇 모니터, 리액션 패드, 드라이브 패드 |
+| `apps/gateway` | `@snack-express/gateway` | NestJS. 로봇 WS 접속(`:3001/robot`), 음성 파이프라인, 리액션·씬 하달, 드라이브 중계 |
+| `apps/dashboard` | `@snack-express/dashboard` | Next.js(`:3000`). 연결 기기 모니터 + 통합 컨트롤러(능력 기반 라우팅) |
+| `firmware/vehicle` | — | 탱크 차량 ESP32-C3 펌웨어(PlatformIO). drive·착좌 감지·모터 비프·멀티 네트워크 |
 | `tools/mock-robot` | `@snack-express/mock-robot` | 하드웨어 없이 개발하기 위한 가짜 로봇 CLI |
 
 ## 시작하기
