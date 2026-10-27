@@ -266,6 +266,69 @@
 합격이면 배터리 빼고 OUT+를 C3 5V 줄에 연결. 멀티미터가 없으면 C3 대신 싼 부품(LED 등)으로 먼저 스모크 테스트.
 </div>
 
+<h3>선택 업그레이드 — 저항 세트가 있다면</h3>
+<p>없어도 차는 달립니다. 하지만 저항 6개를 추가하면 두 가지 성가신 문제가 사라져요
+(부품표의 "저항 (선택·강추)" 항목). 둘 다 브레드보드에 꽂기만 하면 됩니다 — 납땜 없음.</p>
+
+<figure>
+<div class="diagram">
+<svg viewBox="0 0 880 330" xmlns="http://www.w3.org/2000/svg" font-family="ui-monospace, Menlo, monospace" font-size="13">
+  <!-- ===== 좌: 분압 저항 (저전압 측정) ===== -->
+  <text x="210" y="34" text-anchor="middle" fill="var(--ink)" font-weight="bold">① 전압 분압 — 배터리 잔량 측정</text>
+  <text x="60" y="80" fill="var(--red)" font-weight="bold">배터리＋ (7.4V)</text>
+  <polyline points="100,92 100,120" fill="none" stroke="var(--red)" stroke-width="2.5"/>
+  <!-- 100k -->
+  <rect x="80" y="120" width="40" height="56" rx="5" fill="none" stroke="var(--amber)" stroke-width="2"/>
+  <text x="138" y="152" fill="var(--amber)">100kΩ</text>
+  <polyline points="100,176 100,210" fill="none" stroke="var(--ink)" stroke-width="2.5"/>
+  <circle cx="100" cy="210" r="5" fill="var(--cyan)"/>
+  <polyline points="105,210 260,210" fill="none" stroke="var(--cyan)" stroke-width="2.5"/>
+  <text x="270" y="215" fill="var(--cyan)">→ C3 GPIO0 (ADC)</text>
+  <text x="270" y="236" fill="var(--muted)" font-size="12">7.4V가 약 2.4V로 낮아져 들어옴</text>
+  <!-- 47k -->
+  <polyline points="100,215 100,240" fill="none" stroke="var(--ink)" stroke-width="2.5"/>
+  <rect x="80" y="240" width="40" height="56" rx="5" fill="none" stroke="var(--amber)" stroke-width="2"/>
+  <text x="138" y="272" fill="var(--amber)">47kΩ</text>
+  <polyline points="100,296 100,316" fill="none" stroke="var(--muted)" stroke-width="2.5"/>
+  <text x="112" y="320" fill="var(--muted)">GND (파랑 레일)</text>
+  <text x="210" y="60" text-anchor="middle" fill="var(--muted)" font-size="12">펌웨어가 7.2V 이하를 감지하면 주행 정지+경고 (저전압 컷오프)</text>
+
+  <!-- ===== 우: 풀다운 저항 ===== -->
+  <text x="650" y="34" text-anchor="middle" fill="var(--ink)" font-weight="bold">② 풀다운 ×4 — 플래시 중 폭주 방지</text>
+  <text x="650" y="60" text-anchor="middle" fill="var(--muted)" font-size="12">플래시 동안 GPIO가 붕 뜨면 노이즈가 모터 출력이 됨 → 10kΩ이 바닥(GND)으로 눌러줌</text>
+  <g>
+    <text x="500" y="110" fill="var(--cyan)">AIN1 줄 ●─</text>
+    <text x="500" y="160" fill="var(--cyan)">AIN2 줄 ●─</text>
+    <text x="500" y="210" fill="var(--magenta)">BIN1 줄 ●─</text>
+    <text x="500" y="260" fill="var(--magenta)">BIN2 줄 ●─</text>
+  </g>
+  <g fill="none" stroke="var(--amber)" stroke-width="2">
+    <rect x="610" y="94"  width="56" height="22" rx="5"/>
+    <rect x="610" y="144" width="56" height="22" rx="5"/>
+    <rect x="610" y="194" width="56" height="22" rx="5"/>
+    <rect x="610" y="244" width="56" height="22" rx="5"/>
+  </g>
+  <g fill="var(--amber)" font-size="12">
+    <text x="676" y="110">10kΩ</text>
+    <text x="676" y="160">10kΩ</text>
+    <text x="676" y="210">10kΩ</text>
+    <text x="676" y="260">10kΩ</text>
+  </g>
+  <g fill="none" stroke="var(--muted)" stroke-width="2.5">
+    <polyline points="730,105 790,105 790,290"/>
+    <polyline points="730,155 790,155"/>
+    <polyline points="730,205 790,205"/>
+    <polyline points="730,255 790,255"/>
+  </g>
+  <text x="790" y="312" text-anchor="middle" fill="var(--muted)">GND (파랑 레일)</text>
+</svg>
+</div>
+<figcaption>선택 저항 배선. ①은 배터리＋와 GND 사이에 100k→47k를 직렬로 세우고 그 중간점을 C3의 ADC 핀에.
+②는 신호선 4개(AIN/BIN)가 꽂힌 각 세로줄에서 10kΩ을 거쳐 파랑 레일로. 전부 브레드보드 꽂기만으로 가능.</figcaption>
+</figure>
+<p class="why">※ 분압 저항을 달았다면 펌웨어에 ADC 읽기 코드를 추가해야 동작합니다 (리포 이슈/작성자 참고).
+풀다운은 코드 변경 없이 꽂는 즉시 효과.</p>
+
 <h2><span class="no">04</span>안전 수칙 — 전원 켜기 전 암기</h2>
 <ul class="check">
 <li><b>USB와 벅 OUT+ 동시 연결 금지</b> — 두 5V 전원이 충돌. 플래시할 땐 OUT+를 브레드보드에서 뽑고 USB 연결 (배터리→VM은 동시여도 OK)</li>
@@ -366,6 +429,146 @@ pnpm dev   # gateway :3001 + dashboard :3000</code></pre>
 "스캔엔 보이는데 status=6 반복"이면 §05-①, 모터가 명령을 받는데(<code>&lt;- drive</code> 로그) 안 돌면
 배터리(VM 전원)부터 확인.
 </div>
+
+<h2><span class="no">07</span>외장 — 골판지 차체 (선택)</h2>
+<p>달리는 것만으로 충분하다면 건너뛰어도 됩니다. 꾸미고 싶다면: 골판지로 차체 셸을 만들어
+섀시에 씌우는 전개도입니다 (사이버트럭 웨지 노즈 + 오픈 콕핏 스타일). 골판지 목업으로 치수를
+확정한 뒤 취향대로 외장재를 올리는 흐름이에요.</p>
+
+<div class="card tip">
+<b>시작 전 딱 1개만 실측: W = 섀시 상판 폭.</b>
+아래 전개도의 폭 방향 치수는 전부 <b>W = 110mm 가정</b>입니다. 섀시에서 차체가 앉을 자리(트랙 안쪽 폭)를
+자로 재서 다르면 W 표기 치수만 그 값으로 바꾸세요 — 길이 방향은 그대로 쓰면 됩니다.
+</div>
+
+<h3>부품 A — 측면 패널 ×2 (좌우 대칭, 같은 도면 2장)</h3>
+<figure>
+<div class="diagram">
+<svg viewBox="0 0 700 330" xmlns="http://www.w3.org/2000/svg" font-family="ui-monospace, Menlo, monospace" font-size="12">
+  <polyline points="40,250 40,205 220,145 295,70 325,70 325,184 670,184 670,250"
+            fill="none" stroke="var(--ink)" stroke-width="2.5"/>
+  <polyline points="40,250 70,250" fill="none" stroke="var(--ink)" stroke-width="2.5"/>
+  <polyline points="190,250 310,250" fill="none" stroke="var(--ink)" stroke-width="2.5"/>
+  <polyline points="490,250 535,250" fill="none" stroke="var(--ink)" stroke-width="2.5"/>
+  <polyline points="655,250 670,250" fill="none" stroke="var(--ink)" stroke-width="2.5"/>
+  <line x1="70" y1="250" x2="190" y2="250" stroke="var(--magenta)" stroke-width="2" stroke-dasharray="7 5"/>
+  <polyline points="70,250 76,280 184,280 190,250" fill="none" stroke="var(--amber)" stroke-width="2.5"/>
+  <line x1="310" y1="250" x2="490" y2="250" stroke="var(--magenta)" stroke-width="2" stroke-dasharray="7 5"/>
+  <polyline points="310,250 316,280 484,280 490,250" fill="none" stroke="var(--amber)" stroke-width="2.5"/>
+  <line x1="535" y1="250" x2="655" y2="250" stroke="var(--magenta)" stroke-width="2" stroke-dasharray="7 5"/>
+  <polyline points="535,250 541,280 649,280 655,250" fill="none" stroke="var(--amber)" stroke-width="2.5"/>
+  <line x1="40" y1="306" x2="670" y2="306" stroke="var(--muted)" stroke-width="1"/>
+  <line x1="40" y1="300" x2="40" y2="312" stroke="var(--muted)" stroke-width="1"/>
+  <line x1="670" y1="300" x2="670" y2="312" stroke="var(--muted)" stroke-width="1"/>
+  <text x="355" y="322" text-anchor="middle" fill="var(--ink)">210mm (섀시 193 + 뒤 여유)</text>
+  <line x1="220" y1="145" x2="220" y2="256" stroke="var(--line)" stroke-width="1" stroke-dasharray="3 4"/>
+  <line x1="295" y1="70" x2="295" y2="256" stroke="var(--line)" stroke-width="1" stroke-dasharray="3 4"/>
+  <line x1="325" y1="184" x2="325" y2="256" stroke="var(--line)" stroke-width="1" stroke-dasharray="3 4"/>
+  <line x1="550" y1="184" x2="550" y2="256" stroke="var(--line)" stroke-width="1" stroke-dasharray="3 4"/>
+  <text x="130" y="244" text-anchor="middle" fill="var(--muted)">후드</text>
+  <text x="257" y="244" text-anchor="middle" fill="var(--muted)">윈드실드</text>
+  <text x="437" y="244" text-anchor="middle" fill="var(--cyan)">콕핏 (열림)</text>
+  <text x="610" y="244" text-anchor="middle" fill="var(--muted)">베드</text>
+  <text x="130" y="132" text-anchor="middle" fill="var(--ink)">60</text>
+  <text x="256" y="60" text-anchor="middle" fill="var(--ink)">25</text>
+  <text x="310" y="60" text-anchor="middle" fill="var(--ink)">10</text>
+  <text x="437" y="176" text-anchor="middle" fill="var(--ink)">75 (콕핏 개구)</text>
+  <text x="610" y="176" text-anchor="middle" fill="var(--ink)">40</text>
+  <text x="20" y="232" text-anchor="end" fill="var(--ink)">15</text>
+  <line x1="24" y1="250" x2="24" y2="205" stroke="var(--muted)" stroke-width="1"/>
+  <text x="352" y="222" text-anchor="middle" fill="var(--ink)">↕22 (사이드 실)</text>
+  <text x="332" y="130" text-anchor="start" fill="var(--ink)">↕60 (롤바 탑)</text>
+  <text x="125" y="168" text-anchor="middle" fill="var(--muted)" transform="rotate(-18 125 168)">경사길이 63</text>
+  <text x="252" y="98" text-anchor="middle" fill="var(--muted)" transform="rotate(-45 252 98)">35</text>
+  <text x="400" y="296" text-anchor="middle" fill="var(--amber)">날개 깊이 10mm · 안쪽으로 접어 섀시 상판에 테이프</text>
+  <text x="40" y="192" text-anchor="start" fill="var(--muted)">◀ 앞 (웨지 노즈)</text>
+  <text x="670" y="172" text-anchor="end" fill="var(--muted)">뒤 ▶</text>
+</svg>
+</div>
+<figcaption>부품 A 측면 패널 — 실선=자르기, 점선=접기, 노랑=풀칠 날개. 윤곽 좌표(앞 아래 기준, mm):
+(0,0)→(0,15)→(60,35)→(85,60)→(95,60)→(95,22)→(210,22)→(210,0)</figcaption>
+</figure>
+
+<h3>부품 B — 보닛 스트립 (앞면+후드+윈드실드+롤바, 1장)</h3>
+<p>긴 띠 한 장을 점선에서 접어 차 앞쪽을 덮습니다. 양옆 노랑 날개를 측면 패널 윗변 안쪽에 풀칠.</p>
+<figure>
+<div class="diagram">
+<svg viewBox="0 0 560 620" xmlns="http://www.w3.org/2000/svg" font-family="ui-monospace, Menlo, monospace" font-size="12">
+  <rect x="115" y="40" width="330" height="483" fill="none" stroke="var(--ink)" stroke-width="2.5"/>
+  <g stroke="var(--amber)" stroke-width="2.5" fill="none">
+    <polyline points="115,40 91,46 91,79 115,85"/>      <polyline points="445,40 469,46 469,79 445,85"/>
+    <polyline points="115,91 91,97 91,262 115,268"/>    <polyline points="445,91 469,97 469,262 445,268"/>
+    <polyline points="115,274 91,280 91,367 115,373"/>  <polyline points="445,274 469,280 469,367 445,373"/>
+    <polyline points="115,379 91,385 91,403 115,409"/>  <polyline points="445,379 469,385 469,403 445,409"/>
+    <polyline points="115,415 91,421 91,517 115,523"/>  <polyline points="445,415 469,421 469,517 445,523"/>
+  </g>
+  <line x1="115" y1="85"  x2="445" y2="85"  stroke="var(--magenta)" stroke-width="2" stroke-dasharray="7 5"/>
+  <line x1="115" y1="274" x2="445" y2="274" stroke="var(--magenta)" stroke-width="2" stroke-dasharray="7 5"/>
+  <line x1="115" y1="379" x2="445" y2="379" stroke="var(--magenta)" stroke-width="2" stroke-dasharray="7 5"/>
+  <line x1="115" y1="409" x2="445" y2="409" stroke="var(--magenta)" stroke-width="2" stroke-dasharray="7 5"/>
+  <rect x="160" y="298" width="240" height="57" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-dasharray="4 4"/>
+  <text x="280" y="333" text-anchor="middle" fill="var(--cyan)">창 80×19 — 금만 긋기 (아크릴 창 자리)</text>
+  <text x="280" y="68" text-anchor="middle" fill="var(--ink)">① 앞면 15</text>
+  <text x="280" y="185" text-anchor="middle" fill="var(--ink)">② 후드 63</text>
+  <text x="280" y="294" text-anchor="middle" fill="var(--ink)">③ 윈드실드 35</text>
+  <text x="280" y="399" text-anchor="middle" fill="var(--ink)">④ 롤바 탑 10</text>
+  <text x="280" y="472" text-anchor="middle" fill="var(--ink)">⑤ 롤바 뒷면 38 (콕핏 쪽 수직)</text>
+  <line x1="115" y1="556" x2="445" y2="556" stroke="var(--muted)" stroke-width="1"/>
+  <line x1="115" y1="550" x2="115" y2="562" stroke="var(--muted)" stroke-width="1"/>
+  <line x1="445" y1="550" x2="445" y2="562" stroke="var(--muted)" stroke-width="1"/>
+  <text x="280" y="576" text-anchor="middle" fill="var(--ink)">W = 110 (실측값으로 교체)</text>
+  <text x="280" y="598" text-anchor="middle" fill="var(--amber)">양옆 날개 8mm — 측면 패널 윗변 안쪽에 풀칠</text>
+  <text x="68" y="300" text-anchor="middle" fill="var(--muted)" transform="rotate(-90 68 300)">총 길이 161mm</text>
+</svg>
+</div>
+<figcaption>부품 B — ①~⑤ 순서로 접으면 측면 패널의 앞 윤곽과 맞물립니다 (15+63+35+10+38 = 측면 경사길이 합).</figcaption>
+</figure>
+
+<h3>부품 C·D — 베드 앞벽 + 테일게이트</h3>
+<figure>
+<div class="diagram">
+<svg viewBox="0 0 840 240" xmlns="http://www.w3.org/2000/svg" font-family="ui-monospace, Menlo, monospace" font-size="12">
+  <rect x="50" y="40" width="330" height="66" fill="none" stroke="var(--ink)" stroke-width="2.5"/>
+  <g stroke="var(--amber)" stroke-width="2.5" fill="none">
+    <polyline points="50,40 26,46 26,100 50,106"/>
+    <polyline points="380,40 404,46 404,100 380,106"/>
+    <polyline points="50,106 56,130 374,130 380,106"/>
+  </g>
+  <line x1="50" y1="106" x2="380" y2="106" stroke="var(--magenta)" stroke-width="2" stroke-dasharray="7 5"/>
+  <text x="215" y="80" text-anchor="middle" fill="var(--ink)">부품 C — 베드 앞벽 W×22</text>
+  <text x="215" y="156" text-anchor="middle" fill="var(--muted)">콕핏 뒤(x=170)에 세움 · 옆/바닥 날개 풀칠</text>
+  <rect x="470" y="40" width="330" height="66" fill="none" stroke="var(--ink)" stroke-width="2.5"/>
+  <line x1="470" y1="106" x2="800" y2="106" stroke="var(--magenta)" stroke-width="2.5" stroke-dasharray="7 5"/>
+  <text x="635" y="80" text-anchor="middle" fill="var(--ink)">부품 D — 테일게이트 W×22</text>
+  <text x="635" y="156" text-anchor="middle" fill="var(--muted)">아랫변(점선)을 차체 뒤끝에 테이프 경첩</text>
+  <text x="635" y="178" text-anchor="middle" fill="var(--muted)">반쯤 연 각도(45°)는 실·종이끈으로 고정</text>
+</svg>
+</div>
+<figcaption>부품 C는 콕핏과 짐칸(간식 베드)을 나누는 벽, 부품 D는 반개방 테일게이트.</figcaption>
+</figure>
+
+<h3>재단 치수표</h3>
+<div class="tbl-wrap">
+<table>
+<thead><tr><th>부품</th><th>수량</th><th>치수 (mm)</th><th>비고</th></tr></thead>
+<tbody>
+<tr><td>A 측면 패널</td><td class="mono">2</td><td class="mono">210 × 60 (+바닥 날개 10)</td><td>좌우 대칭 — 같은 판 2장, 한 장 뒤집어 사용</td></tr>
+<tr><td>B 보닛 스트립</td><td class="mono">1</td><td class="mono">161 × W (+양옆 날개 8)</td><td>접는 선 4개: 15 / 78 / 113 / 123 지점</td></tr>
+<tr><td>C 베드 앞벽</td><td class="mono">1</td><td class="mono">W × 22 (+날개)</td><td>콕핏 등받이 겸용, x=170에 세움</td></tr>
+<tr><td>D 테일게이트</td><td class="mono">1</td><td class="mono">W × 22</td><td>테이프 경첩, 45° 반개방</td></tr>
+</tbody>
+</table>
+</div>
+<p class="why">W = 섀시 상판 실측 폭 (기본 가정 110). 3mm 골판 기준 — 두께 보정은 목업 단계에선 무시.</p>
+
+<h3>조립 순서 요약</h3>
+<ol class="steps">
+<li><b class="t">측면 패널 2장 가고정</b><p>바닥 날개를 안으로 접어 섀시 상판에 마스킹테이프. 트랙에 닿지 않는지 손으로 굴려 확인.</p></li>
+<li><b class="t">보닛 스트립 접어 씌우기</b><p>①~⑤를 측면 윤곽에 맞춰보고 뜨는 곳은 접는 위치를 1~2mm 조정 — 이 조정값이 목업의 수확물. 맞으면 날개 풀칠.</p></li>
+<li><b class="t">베드 앞벽(C) + 테일게이트(D)</b><p>C는 콕핏 뒤에 세우고, D는 뒤끝에 테이프 경첩.</p></li>
+<li><b class="t">전자부품 간섭 체크</b><p>후드 밑에 벅 컨버터·배선이 들어가는지(앞쪽 15mm는 얇음 — 부품은 뒤쪽 배치),
+셸이 C3 안테나를 알루미늄 섀시 쪽으로 누르지 않는지(Wi-Fi 감도 저하).</p></li>
+</ol>
 
 <p class="why" style="margin-top:40px">이 가이드는 2026-10 실제 제작 과정에서 검증된 내용만 담았습니다.
 다음 확장(착좌 감지 → 주행모드 연출, 클락션 버튼, 저전압 컷오프)은 모노레포에서 진행 중 — 궁금하면 작성자에게 물어보세요. 🚚</p>
