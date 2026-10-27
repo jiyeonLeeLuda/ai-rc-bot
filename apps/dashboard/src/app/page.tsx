@@ -1,15 +1,18 @@
 "use client";
 
 /**
- * 메인 페이지: 로봇 목록 폴링 + 컨트롤 패널.
+ * 메인 페이지: 연결 기기 상태 + 통합 컨트롤러.
  *
  * 레이아웃:
  *   [헤더]
- *   [로봇 카드 목록] ← 3초마다 GET /robots
- *   [컨트롤 패널]   ← 선택된 로봇에 리액션 / Say / Drive 전송
+ *   [연결된 기기 목록]  ← 상태 표시 전용 (3초마다 GET /robots)
+ *   [통합 컨트롤러 1개] ← 기능별로 알맞은 로봇에 자동 라우팅:
+ *       표정·Say·말걸기 → face 능력 로봇(스타키)
+ *       주행·클락션     → drive 능력 로봇(차량)
+ *     해당 능력 로봇이 없으면 그 부분만 비활성화된다.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { fetchRobots, postSay, type Robot } from "@/lib/gateway";
+import { fetchRobots, postChat, postSpeak, type Robot } from "@/lib/gateway";
 import RobotCard from "@/components/RobotCard";
 import ReactionPad from "@/components/ReactionPad";
 import DrivePad from "@/components/DrivePad";
@@ -19,12 +22,13 @@ const POLL_INTERVAL_MS = 3000; // 로봇 목록 폴링 주기
 
 export default function DashboardPage() {
   const [robots, setRobots] = useState<Robot[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [pollError, setPollError] = useState<string | null>(null);
 
-  // Say 입력 상태
+  // 텍스트 입력 상태 (Say = 따라 말하기 / Chat = 말 걸기)
   const [sayText, setSayText] = useState("");
   const [isSaying, setIsSaying] = useState(false);
+  const [chatText, setChatText] = useState("");
+  const [isChatting, setIsChatting] = useState(false);
 
   // 폴링 타이머 ref — 언마운트 시 정리
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -35,15 +39,10 @@ export default function DashboardPage() {
       const list = await fetchRobots();
       setRobots(list);
       setPollError(null);
-
-      // 선택된 로봇이 목록에서 사라졌으면 선택 해제
-      if (selectedId && !list.find((r) => r.robotId === selectedId)) {
-        setSelectedId(null);
-      }
     } catch (e) {
       setPollError(e instanceof Error ? e.message : "연결 오류");
     }
-  }, [selectedId]);
+  }, []);
 
   // 마운트 시 즉시 1회 조회 + 3초 폴링 시작
   useEffect(() => {
@@ -54,17 +53,31 @@ export default function DashboardPage() {
     };
   }, [poll]);
 
-  const selectedRobot = robots.find((r) => r.robotId === selectedId) ?? null;
+  // 능력 기반 라우팅: 표정·발화는 face 로봇에게, 주행은 drive 로봇에게.
+  const faceRobot = robots.find((r) => r.capabilities.includes("face")) ?? null;
+  const driveRobot = robots.find((r) => r.capabilities.includes("drive")) ?? null;
 
-  /** Say 버튼 핸들러 */
+  /** Speak: 입력한 문장을 그대로 발화 */
   const handleSay = async () => {
-    if (!selectedRobot || !sayText.trim()) return;
+    if (!faceRobot || !sayText.trim()) return;
     setIsSaying(true);
     try {
-      await postSay(selectedRobot.robotId, sayText.trim());
+      await postSpeak(faceRobot.robotId, sayText.trim());
       setSayText("");
     } finally {
       setIsSaying(false);
+    }
+  };
+
+  /** Chat: 말을 걸면 LLM이 답변을 생성해 발화 */
+  const handleChat = async () => {
+    if (!faceRobot || !chatText.trim()) return;
+    setIsChatting(true);
+    try {
+      await postChat(faceRobot.robotId, chatText.trim());
+      setChatText("");
+    } finally {
+      setIsChatting(false);
     }
   };
 
@@ -78,10 +91,10 @@ export default function DashboardPage() {
         <span className={styles.subtitle}>로봇 조종 대시보드</span>
       </header>
 
-      {/* ── 로봇 목록 ── */}
+      {/* ── 연결된 기기 (상태 표시 전용) ── */}
       <section className={styles.robotSection}>
         <div className={styles.sectionHeader}>
-          <h2 className={styles.sectionTitle}>연결된 로봇</h2>
+          <h2 className={styles.sectionTitle}>연결된 기기</h2>
           {pollError && (
             <span className={styles.error}>⚠ {pollError}</span>
           )}
@@ -89,7 +102,6 @@ export default function DashboardPage() {
         </div>
 
         {robots.length === 0 ? (
-          /* 연결된 로봇이 없을 때 안내 */
           <div className={styles.emptyState}>
             <p>연결된 로봇이 없습니다.</p>
             <p className={styles.hint}>
@@ -100,72 +112,91 @@ export default function DashboardPage() {
         ) : (
           <div className={styles.robotList}>
             {robots.map((robot) => (
-              <RobotCard
-                key={robot.robotId}
-                robot={robot}
-                selected={robot.robotId === selectedId}
-                onSelect={() =>
-                  setSelectedId((prev) =>
-                    prev === robot.robotId ? null : robot.robotId,
-                  )
-                }
-              />
+              <RobotCard key={robot.robotId} robot={robot} />
             ))}
           </div>
         )}
       </section>
 
-      {/* ── 컨트롤 패널 (로봇 선택 시에만 표시) ── */}
-      {selectedRobot ? (
+      {/* ── 통합 컨트롤러 (로봇이 1대라도 있으면 표시) ── */}
+      {robots.length > 0 && (
         <section className={styles.controlPanel}>
           <div className={styles.controlHeader}>
             <span className={styles.controlling}>
-              조종 중:{" "}
+              컨트롤러{" "}
               <strong className={styles.robotName}>
-                {selectedRobot.robotId}
+                {faceRobot ? `🙂 ${faceRobot.robotId}` : "🙂 (미접속)"}
+                {" · "}
+                {driveRobot ? `🚗 ${driveRobot.robotId}` : "🚗 (미접속)"}
               </strong>
             </span>
           </div>
 
           <div className={styles.controlGrid}>
-            {/* 리액션 패드 */}
-            <ReactionPad robotId={selectedRobot.robotId} />
+            {/* 표정 — face 로봇 */}
+            {faceRobot && <ReactionPad robotId={faceRobot.robotId} />}
 
-            {/* Say 입력 */}
+            {/* 말 걸기 / Say — face 로봇 */}
             <section className={styles.saySection}>
-              <h3 className={styles.panelTitle}>Say</h3>
+              <h3 className={styles.panelTitle}>말 걸기</h3>
               <div className={styles.sayRow}>
                 <input
                   className={styles.sayInput}
                   type="text"
-                  placeholder="로봇이 말할 텍스트..."
+                  placeholder={
+                    faceRobot
+                      ? "스타키에게 말을 걸어보세요... (답변을 생성해요)"
+                      : "face 로봇 미접속"
+                  }
+                  value={chatText}
+                  onChange={(e) => setChatText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") void handleChat();
+                  }}
+                  maxLength={200}
+                  disabled={!faceRobot}
+                />
+                <button
+                  className={styles.sayBtn}
+                  onClick={() => void handleChat()}
+                  disabled={!faceRobot || isChatting || !chatText.trim()}
+                >
+                  {isChatting ? "생각 중..." : "말 걸기"}
+                </button>
+              </div>
+
+              <h3 className={styles.panelTitle} style={{ marginTop: 14 }}>
+                Speak (따라 말하기)
+              </h3>
+              <div className={styles.sayRow}>
+                <input
+                  className={styles.sayInput}
+                  type="text"
+                  placeholder={
+                    faceRobot ? "이 문장을 그대로 읽어요..." : "face 로봇 미접속"
+                  }
                   value={sayText}
                   onChange={(e) => setSayText(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") void handleSay();
                   }}
                   maxLength={200}
+                  disabled={!faceRobot}
                 />
                 <button
                   className={styles.sayBtn}
                   onClick={() => void handleSay()}
-                  disabled={isSaying || !sayText.trim()}
+                  disabled={!faceRobot || isSaying || !sayText.trim()}
                 >
                   {isSaying ? "전송 중..." : "전송"}
                 </button>
               </div>
             </section>
 
-            {/* 드라이브 패드 */}
-            <DrivePad robot={selectedRobot} />
+            {/* 주행 + 클락션 — drive 로봇 */}
+            {driveRobot && <DrivePad robot={driveRobot} />}
           </div>
         </section>
-      ) : (
-        robots.length > 0 && (
-          <p className={styles.selectHint}>
-            위에서 로봇 카드를 클릭하면 조종을 시작합니다.
-          </p>
-        )
       )}
     </div>
   );

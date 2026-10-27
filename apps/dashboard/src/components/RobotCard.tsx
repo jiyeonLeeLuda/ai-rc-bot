@@ -1,16 +1,14 @@
 "use client";
 
 /**
- * 로봇 한 대의 상태를 표시하는 카드 컴포넌트.
- * 선택 여부에 따라 테두리 강조(시안 하이라이트).
+ * 로봇 한 대의 상태를 표시하는 카드 컴포넌트 (표시 전용).
+ * 조종은 통합 컨트롤러가 능력(capabilities) 기반으로 자동 라우팅한다.
  */
 import type { Robot } from "@/lib/gateway";
 import styles from "./RobotCard.module.css";
 
 interface Props {
   robot: Robot;
-  selected: boolean;
-  onSelect: () => void;
 }
 
 /** 모드 → 한국어 레이블 + CSS 클래스 */
@@ -22,15 +20,11 @@ const MODE_LABEL: Record<Robot["mode"], { text: string; color: string }> = {
   driving: { text: "주행 중", color: "#00ffaa" },
 };
 
-export default function RobotCard({ robot, selected, onSelect }: Props) {
+export default function RobotCard({ robot }: Props) {
   const mode = MODE_LABEL[robot.mode] ?? { text: robot.mode, color: "#888899" };
 
   return (
-    <button
-      className={`${styles.card} ${selected ? styles.selected : ""}`}
-      onClick={onSelect}
-      aria-pressed={selected}
-    >
+    <div className={styles.card}>
       {/* 로봇 ID + 펌웨어 버전 */}
       <div className={styles.header}>
         <span className={styles.robotId}>{robot.robotId}</span>
@@ -64,6 +58,6 @@ export default function RobotCard({ robot, selected, onSelect }: Props) {
           </span>
         ))}
       </div>
-    </button>
+    </div>
   );
 }

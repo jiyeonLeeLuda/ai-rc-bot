@@ -29,7 +29,8 @@ export const Expression = z.enum([
   "dizzy", // 훅! @_@
   "sad",
   "sleepy",
-  "cool", // 😎 선글라스 — 주행모드. (CoreS3 얼굴 에셋은 후속: 미지원 펌웨어는 neutral 폴백)
+  "cool", // 😎 선글라스 — 표정과 독립인 오버레이. sound:"glasses-off" 마커로만 벗는다
+  "angry", // 😠
 ]);
 export type Expression = z.infer<typeof Expression>;
 

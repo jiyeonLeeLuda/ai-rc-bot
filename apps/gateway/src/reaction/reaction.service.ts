@@ -8,13 +8,20 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import type { PlaySequence } from '@snack-express/protocol';
 import { RobotRegistryService } from '../robot/robot-registry.service';
 import {
+  ANGRY,
   BANGYA,
   BLOWKISS,
+  CRY,
+  DOZE,
   HEART,
   HOOK,
+  LAUGH,
+  LOOK_AROUND,
   MIRROR_HAPPY,
   MIRROR_SURPRISED,
   MIRROR_WINK,
+  NOD,
+  SHAKE_NO,
   WAVE,
 } from './reactions';
 import type { SequenceStep } from '@snack-express/protocol';
@@ -29,6 +36,13 @@ const REACTIONS: Record<string, SequenceStep[]> = {
   hook: HOOK,
   wave: WAVE,
   heart: HEART,
+  nod: NOD,
+  no: SHAKE_NO,
+  angry: ANGRY,
+  laugh: LAUGH,
+  cry: CRY,
+  doze: DOZE,
+  lookaround: LOOK_AROUND,
 };
 
 @Injectable()

@@ -276,16 +276,26 @@ export class VoiceService {
   async speak(
     robotId: string,
     text: string,
-    expression: 'neutral' | 'happy' | 'cool' = 'happy',
+    expression: Expression = 'happy',
   ): Promise<void> {
-    // 표정+말풍선은 TTS 지연과 무관하게 즉시
+    if (!this.openai) {
+      // 키 없음 — 말풍선만
+      this.registry.send(robotId, {
+        type: 'sequence',
+        id: `speak-${Date.now()}`,
+        steps: [{ expression, text, durationMs: 3000 }],
+      });
+      return;
+    }
+
+    // 표정만 즉시 (선글라스 등 연출 타이밍 유지). 텍스트 말풍선은 TTS 합성이
+    // 끝난 뒤 음성과 "동시에" 보낸다 — 먼저 보내면 합성 지연(2~4초) 동안
+    // 말풍선이 먼저 사라지고 나서야 음성이 나오는 엇박자가 생긴다(실측).
     this.registry.send(robotId, {
       type: 'sequence',
-      id: `speak-${Date.now()}`,
-      steps: [{ expression, text, durationMs: 3000 }],
+      id: `speak-pre-${Date.now()}`,
+      steps: [{ expression, durationMs: 8000 }],
     });
-
-    if (!this.openai) return; // 키 없음 — 말풍선만
 
     try {
       const ttsResp = await this.openai.audio.speech.create({
@@ -295,6 +305,14 @@ export class VoiceService {
         response_format: 'pcm',
       });
       const pcmOut = Buffer.from(await ttsResp.arrayBuffer());
+
+      // 말풍선 지속시간 = 실제 음성 길이(24kHz/16bit/mono) + 여유 1초
+      const audioMs = Math.round((pcmOut.length / 2 / 24000) * 1000);
+      this.registry.send(robotId, {
+        type: 'sequence',
+        id: `speak-${Date.now()}`,
+        steps: [{ expression, text, durationMs: Math.min(audioMs + 1000, 10_000) }],
+      });
 
       const chunkSize = 32 * 1024;
       let seq = 0;
@@ -309,6 +327,68 @@ export class VoiceService {
       }
     } catch (err) {
       this.logger.warn(`[${robotId}] speak TTS 실패 (말풍선만 표시): ${String(err)}`);
+      this.registry.send(robotId, {
+        type: 'sequence',
+        id: `speak-fb-${Date.now()}`,
+        steps: [{ expression, text, durationMs: 3000 }],
+      });
+    }
+  }
+
+  /**
+   * 텍스트로 말 걸기 — 음성 턴에서 STT만 생략한 대화.
+   * LLM이 스타키의 답변·감정을 생성하고 speak()로 발화한다.
+   * 대화 이력은 음성 턴과 공유 — 마이크로 말하다 키보드로 이어가도 맥락 유지.
+   */
+  async chat(robotId: string, userText: string): Promise<void> {
+    if (this.busyRobots.has(robotId)) {
+      this.logger.warn(`[${robotId}] 파이프라인 실행 중 — chat 무시`);
+      return;
+    }
+    if (!this.openai) {
+      await this.speak(robotId, '안녕! 나는 스타키야!');
+      return;
+    }
+
+    this.busyRobots.add(robotId);
+    const t0 = Date.now();
+    try {
+      const convHistory = this.history.get(robotId) ?? [];
+      convHistory.push({ role: 'user', content: userText });
+
+      const completion = await this.openai.chat.completions.create({
+        model: this.llmModel,
+        response_format: { type: 'json_object' },
+        messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...convHistory],
+        max_tokens: 200,
+      });
+      const rawContent =
+        completion.choices[0]?.message?.content ?? '{"reply":"..","emotion":"neutral"}';
+      let llmResp: LlmResponse;
+      try {
+        llmResp = JSON.parse(rawContent) as LlmResponse;
+      } catch {
+        llmResp = { reply: rawContent, emotion: 'neutral' };
+      }
+
+      convHistory.push({ role: 'assistant', content: llmResp.reply });
+      if (convHistory.length > 12) {
+        convHistory.splice(0, convHistory.length - 12);
+      }
+      this.history.set(robotId, convHistory);
+
+      const expression = EMOTION_TO_EXPRESSION[llmResp.emotion] ?? 'neutral';
+      await this.speak(robotId, llmResp.reply, expression);
+      this.logger.log(`[chat] ${robotId} "${userText}" -> "${llmResp.reply}" (${Date.now() - t0}ms)`);
+    } catch (err) {
+      this.logger.error(`[${robotId}] chat 에러: ${String(err)}`);
+      this.registry.send(robotId, {
+        type: 'sequence',
+        id: `chat-err-${Date.now()}`,
+        steps: [{ expression: 'sad', text: '으엉 잘 안 들렸어', durationMs: 2000 }],
+      });
+    } finally {
+      this.busyRobots.delete(robotId);
     }
   }
 

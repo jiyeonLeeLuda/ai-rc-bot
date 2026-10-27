@@ -22,6 +22,13 @@ const REACTIONS: { name: ReactionName; emoji: string; label: string }[] = [
   { name: "hook", emoji: "🥊", label: "hook" },
   { name: "wave", emoji: "👋", label: "wave" },
   { name: "heart", emoji: "❤️", label: "heart" },
+  { name: "nod", emoji: "🙆", label: "끄덕" },
+  { name: "no", emoji: "🙅", label: "도리도리" },
+  { name: "angry", emoji: "😠", label: "화남" },
+  { name: "laugh", emoji: "🤣", label: "깔깔" },
+  { name: "cry", emoji: "😭", label: "엉엉" },
+  { name: "doze", emoji: "😴", label: "꾸벅" },
+  { name: "lookaround", emoji: "👀", label: "두리번" },
 ];
 
 export default function ReactionPad({ robotId }: Props) {

@@ -19,6 +19,7 @@ import { RobotRegistryService } from '../robot/robot-registry.service';
 import { ReactionService } from '../reaction/reaction.service';
 import { DriveService } from '../drive/drive.service';
 import { SceneService } from '../scene/scene.service';
+import { VoiceService } from '../voice/voice.service';
 
 @Controller('robots')
 export class ApiController {
@@ -27,6 +28,7 @@ export class ApiController {
     private readonly reactions: ReactionService,
     private readonly drive: DriveService,
     private readonly scenes: SceneService,
+    private readonly voice: VoiceService,
   ) {}
 
   /**
@@ -74,24 +76,34 @@ export class ApiController {
   }
 
   /**
-   * POST /robots/:id/say — 텍스트를 로봇에게 말하게 하기.
+   * POST /robots/:id/speak — 텍스트를 로봇이 그대로 읽게 하기.
    * body: { text: string }
-   * TODO: OpenAI TTS 연동 시 tts.chunk 스트림으로 교체.
-   * 지금은 텍스트를 말풍선 sequence step으로 대체한다.
+   * VoiceService.speak가 말풍선 sequence(즉시) + OpenAI TTS 음성(tts.chunk)을 보낸다.
+   * OPENAI_API_KEY가 없으면 말풍선만 표시(무음 폴백).
    */
-  @Post(':id/say')
+  @Post(':id/speak')
   @HttpCode(HttpStatus.NO_CONTENT)
-  say(@Param('id') robotId: string, @Body() body: unknown): void {
+  async speak(@Param('id') robotId: string, @Body() body: unknown): Promise<void> {
     const parsed = (body as Record<string, unknown>);
     const text = typeof parsed.text === 'string' ? parsed.text : '';
     if (!text) {
       throw new BadRequestException('body.text is required');
     }
+    await this.voice.speak(robotId, text);
+  }
 
-    this.registry.send(robotId, {
-      type: 'sequence',
-      id: `say-${Date.now()}`,
-      steps: [{ expression: 'happy', text, durationMs: 3000 }],
-    });
+  /**
+   * POST /robots/:id/chat — 로봇에게 말 걸기 (say와 다름: LLM이 답변을 생성해 발화).
+   * body: { text: string }. 대화 이력은 음성 턴과 공유된다.
+   */
+  @Post(':id/chat')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async chat(@Param('id') robotId: string, @Body() body: unknown): Promise<void> {
+    const parsed = (body as Record<string, unknown>);
+    const text = typeof parsed.text === 'string' ? parsed.text : '';
+    if (!text) {
+      throw new BadRequestException('body.text is required');
+    }
+    await this.voice.chat(robotId, text);
   }
 }

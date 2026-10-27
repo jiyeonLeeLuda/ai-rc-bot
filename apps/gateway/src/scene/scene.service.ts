@@ -78,6 +78,12 @@ export class SceneService {
     this.logger.log('[scene] 주행모드 종료');
     const face = this.faceRobot('driving-end');
     if (!face) return;
+    // 선글라스는 표정과 독립인 오버레이라, 전용 마커로만 벗는다 (펌웨어 applyStep 참조)
+    this.registry.send(face, {
+      type: 'sequence',
+      id: `glasses-off-${Date.now()}`,
+      steps: [{ sound: 'glasses-off', durationMs: 100 }],
+    });
     await this.voice.speak(face, '주행모드 종료!', 'neutral');
   }
 

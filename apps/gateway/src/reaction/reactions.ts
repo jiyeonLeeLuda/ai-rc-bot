@@ -52,3 +52,55 @@ export const WAVE: SequenceStep[] = [
 export const HEART: SequenceStep[] = [
   { expression: 'love', durationMs: 1500 },
 ];
+
+// 끄덕/승인 — 눈이 O K 로 변신 (sound 마커 "eyes-ok"는 펌웨어 EyeFX가 처리)
+// 서보 셸 장착 전이라 고개 연기 대신 눈으로 말한다. 끝나면 자동 복귀.
+export const NOD: SequenceStep[] = [
+  { expression: 'happy', sound: 'eyes-ok', text: 'OK!', durationMs: 1800 },
+];
+
+// 도리도리/거절 — 눈이 N O 로 변신
+export const SHAKE_NO: SequenceStep[] = [
+  { expression: 'sad', sound: 'eyes-no', text: '안 돼요', durationMs: 1800 },
+];
+
+// 화남 — angry + 미세 떨림(pan) + 부들부들
+export const ANGRY: SequenceStep[] = [
+  { expression: 'angry', text: '부들부들', servo: { pan: 86, ms: 80 }, durationMs: 150 },
+  { servo: { pan: 94, ms: 80 }, durationMs: 150 },
+  { servo: { pan: 86, ms: 80 }, durationMs: 150 },
+  { servo: { pan: 94, ms: 80 }, durationMs: 150 },
+  { expression: 'angry', servo: { pan: 90, ms: 120 }, durationMs: 1200 },
+];
+
+// 깔깔 웃음 — happy + 고개 들썩 + ㅋㅋㅋ
+export const LAUGH: SequenceStep[] = [
+  { expression: 'happy', text: 'ㅋㅋㅋㅋ', servo: { tilt: 80, ms: 140 }, durationMs: 220 },
+  { servo: { tilt: 100, ms: 140 }, durationMs: 220 },
+  { servo: { tilt: 80, ms: 140 }, durationMs: 220 },
+  { servo: { tilt: 100, ms: 140 }, durationMs: 220 },
+  { expression: 'happy', servo: { tilt: 90, ms: 160 }, durationMs: 800 },
+];
+
+// 엉엉 — sad + 고개 푹 + 흑흑
+export const CRY: SequenceStep[] = [
+  { expression: 'sad', servo: { tilt: 70, ms: 400 }, durationMs: 700 },
+  { expression: 'sad', text: '흑흑...', durationMs: 1500 },
+  { servo: { tilt: 90, ms: 400 }, durationMs: 500 },
+];
+
+// 꾸벅 졸기 — sleepy + 고개가 천천히 떨어졌다 화들짝
+export const DOZE: SequenceStep[] = [
+  { expression: 'sleepy', servo: { tilt: 75, ms: 1200 }, durationMs: 1500 },
+  { expression: 'sleepy', text: '쿨쿨...', servo: { tilt: 65, ms: 800 }, durationMs: 1200 },
+  { expression: 'surprised', text: '헉 깼다!', servo: { tilt: 95, ms: 150 }, durationMs: 900 },
+  { expression: 'neutral', servo: { tilt: 90, ms: 200 }, durationMs: 300 },
+];
+
+// 두리번 — 눈이 커졌다(👀) 작아졌다 두 번 (pan 살피기는 서보 셸 장착 후 효과)
+export const LOOK_AROUND: SequenceStep[] = [
+  { expression: 'surprised', sound: 'eyes-big', servo: { pan: 65, ms: 400 }, durationMs: 650 },
+  { sound: 'eyes-small', servo: { pan: 115, ms: 400 }, durationMs: 650 },
+  { sound: 'eyes-big', servo: { pan: 90, ms: 300 }, durationMs: 650 },
+  { sound: 'eyes-normal', expression: 'neutral', durationMs: 300 },
+];

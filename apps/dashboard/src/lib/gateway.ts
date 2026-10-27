@@ -32,7 +32,14 @@ export type ReactionName =
   | "bangya"
   | "hook"
   | "wave"
-  | "heart";
+  | "heart"
+  | "nod"
+  | "no"
+  | "angry"
+  | "laugh"
+  | "cry"
+  | "doze"
+  | "lookaround";
 
 // ---------------------------------------------------------------------------
 // API 호출
@@ -80,9 +87,18 @@ export async function postScene(
   await fetch(`${BASE}/robots/scenes/${name}`, { method: "POST" });
 }
 
-/** TTS: 로봇이 지정 텍스트를 읽게 한다. */
-export async function postSay(robotId: string, text: string): Promise<void> {
-  await fetch(`${BASE}/robots/${robotId}/say`, {
+/** TTS: 로봇이 지정 텍스트를 그대로 읽게 한다. */
+export async function postSpeak(robotId: string, text: string): Promise<void> {
+  await fetch(`${BASE}/robots/${robotId}/speak`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+  });
+}
+
+/** 말 걸기: LLM이 로봇의 답변을 생성해 발화한다 (음성 턴과 대화 이력 공유). */
+export async function postChat(robotId: string, text: string): Promise<void> {
+  await fetch(`${BASE}/robots/${robotId}/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text }),
