@@ -18,6 +18,7 @@ import { DriveCommand } from '@snack-express/protocol';
 import { RobotRegistryService } from '../robot/robot-registry.service';
 import { ReactionService } from '../reaction/reaction.service';
 import { DriveService } from '../drive/drive.service';
+import { SceneService } from '../scene/scene.service';
 
 @Controller('robots')
 export class ApiController {
@@ -25,7 +26,24 @@ export class ApiController {
     private readonly registry: RobotRegistryService,
     private readonly reactions: ReactionService,
     private readonly drive: DriveService,
+    private readonly scenes: SceneService,
   ) {}
+
+  /**
+   * POST /robots/scenes/:name — 멀티 로봇 씬 재생 (horn | driving-start | driving-end).
+   * horn은 대시보드 클락션 버튼이, driving-*는 착좌 전이가 주 트리거지만
+   * 하드웨어(착좌 접점) 없이도 테스트할 수 있게 REST로도 연다.
+   */
+  @Post('scenes/:name')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async playScene(@Param('name') name: string): Promise<void> {
+    switch (name) {
+      case 'horn': return this.scenes.horn();
+      case 'driving-start': return this.scenes.drivingModeStart();
+      case 'driving-end': return this.scenes.drivingModeEnd();
+      default: throw new BadRequestException(`Unknown scene: ${name}`);
+    }
+  }
 
   /** GET /robots — 현재 연결된 로봇 목록과 메타데이터 반환 */
   @Get()

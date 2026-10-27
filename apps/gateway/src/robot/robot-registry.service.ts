@@ -16,6 +16,10 @@ export interface RobotEntry {
   firmware: string;
   capabilities: Extract<RobotMessage, { type: 'hello' }>['capabilities'];
   connectedAt: Date;
+  /** 마지막 state 메시지의 투영 (대시보드 표시 + seated 전이 감지용) */
+  mode?: string;
+  seated?: boolean;
+  batteryPct?: number;
 }
 
 @Injectable()
@@ -76,6 +80,31 @@ export class RobotRegistryService {
   /** robotId의 capabilities 반환 (미등록 로봇이면 빈 배열) */
   getCapabilities(robotId: string): RobotEntry['capabilities'] {
     return this.robots.get(robotId)?.capabilities ?? [];
+  }
+
+  /** 지정 capability를 가진 첫 로봇의 id (예: 'face' → 스타키). 없으면 undefined. */
+  findByCapability(cap: RobotEntry['capabilities'][number]): string | undefined {
+    for (const entry of this.robots.values()) {
+      if (entry.capabilities.includes(cap)) return entry.robotId;
+    }
+    return undefined;
+  }
+
+  /**
+   * state 메시지 반영. 이전 seated 값을 반환해 호출자가 전이(탑승/하차)를
+   * 감지할 수 있게 한다. (미등록 로봇이면 undefined)
+   */
+  updateState(
+    robotId: string,
+    state: { mode: string; seated?: boolean; batteryPct?: number },
+  ): { prevSeated?: boolean } | undefined {
+    const entry = this.robots.get(robotId);
+    if (!entry) return undefined;
+    const prevSeated = entry.seated;
+    entry.mode = state.mode;
+    if (state.seated !== undefined) entry.seated = state.seated;
+    if (state.batteryPct !== undefined) entry.batteryPct = state.batteryPct;
+    return { prevSeated };
   }
 
   /** REST API 용: 현재 연결된 로봇 목록 반환 */

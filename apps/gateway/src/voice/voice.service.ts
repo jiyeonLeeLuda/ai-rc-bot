@@ -250,6 +250,50 @@ export class VoiceService {
     }
   }
 
+  /**
+   * 지정 텍스트를 TTS로 합성해 로봇에게 말하게 한다 (씬 연출용 — 대화 이력과 무관).
+   * 표정을 함께 주면 발화 동안 그 표정+말풍선 sequence도 전송한다.
+   * OpenAI 키가 없으면 말풍선만 보낸다(무음 폴백).
+   */
+  async speak(
+    robotId: string,
+    text: string,
+    expression: 'neutral' | 'happy' | 'cool' = 'happy',
+  ): Promise<void> {
+    // 표정+말풍선은 TTS 지연과 무관하게 즉시
+    this.registry.send(robotId, {
+      type: 'sequence',
+      id: `speak-${Date.now()}`,
+      steps: [{ expression, text, durationMs: 3000 }],
+    });
+
+    if (!this.openai) return; // 키 없음 — 말풍선만
+
+    try {
+      const ttsResp = await this.openai.audio.speech.create({
+        input: text,
+        model: this.ttsModel,
+        voice: this.ttsVoice,
+        response_format: 'pcm',
+      });
+      const pcmOut = Buffer.from(await ttsResp.arrayBuffer());
+
+      const chunkSize = 32 * 1024;
+      let seq = 0;
+      for (let offset = 0; offset < pcmOut.length; offset += chunkSize) {
+        const slice = pcmOut.subarray(offset, offset + chunkSize);
+        this.registry.send(robotId, {
+          type: 'tts.chunk',
+          seq: seq++,
+          data: slice.toString('base64'),
+          final: offset + chunkSize >= pcmOut.length,
+        });
+      }
+    } catch (err) {
+      this.logger.warn(`[${robotId}] speak TTS 실패 (말풍선만 표시): ${String(err)}`);
+    }
+  }
+
   /** API 키 없을 때 또는 에러 시 전송하는 고정 응답 */
   private sendFallbackResponse(robotId: string): void {
     this.registry.send(robotId, { type: 'tts.chunk', seq: 0, data: 'AAAA', final: true });

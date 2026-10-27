@@ -70,6 +70,16 @@ export async function postDrive(
   });
 }
 
+/**
+ * 멀티 로봇 씬 재생. horn = 차량 클락션(모터 비프) + 스타키 "간식 배달왔어요!",
+ * driving-start/end = 주행모드 시작/종료 연출 (착좌 접점 없이 테스트할 때 사용).
+ */
+export async function postScene(
+  name: "horn" | "driving-start" | "driving-end",
+): Promise<void> {
+  await fetch(`${BASE}/robots/scenes/${name}`, { method: "POST" });
+}
+
 /** TTS: 로봇이 지정 텍스트를 읽게 한다. */
 export async function postSay(robotId: string, text: string): Promise<void> {
   await fetch(`${BASE}/robots/${robotId}/say`, {

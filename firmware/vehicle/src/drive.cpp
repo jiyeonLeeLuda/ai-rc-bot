@@ -146,23 +146,32 @@ bool isActive() { return s_active; }
 void beep(uint16_t freqHz, uint16_t ms) {
   if (!s_began || s_active) return;   // 주행 중엔 비프 금지 (타이머 공유 간섭 방지)
 
-  // A채널(ch0)의 LEDC 주파수를 잠시 가청 대역으로 바꿔 왼쪽 모터 코일을 울린다.
-  // 고주파(≥1kHz)에서 모터 구동 임계는 duty 0.8 이상(실측)이라, 30%는
-  // 바퀴를 못 돌리고 코일만 울린다. (6%는 무음에 가까웠음 — 실측으로 상향)
-  // 주의: ch0·ch1은 같은 타이머라 주파수가 함께 바뀌지만 ch1은 duty 0이라 무음.
-  const uint32_t BEEP_DUTY = 300;   // /1023 ≈ 29%
+  // 양쪽 모터 코일을 동시에 스피커로 (코일 2개 = 음량 ↑).
+  // 고주파(≥1kHz)에서 모터 구동 임계는 duty 0.8 이상(실측)이라 44%는
+  // 바퀴를 못 돌리고 소리만 난다. (29%는 들리긴 하나 작았음 — 실측 상향)
+  // ch0·ch1(타이머0)과 ch2·ch3(타이머1)의 주파수가 함께 바뀌지만
+  // AIN2/BIN2는 duty 0이라 무음.
+  const uint32_t BEEP_DUTY = 450;   // /1023 ≈ 44%
 #if ESP_ARDUINO_VERSION_MAJOR >= 3
   ledcChangeFrequency(PIN_AIN1, freqHz, PWM_RES_BITS);
+  ledcChangeFrequency(PIN_BIN1, freqHz, PWM_RES_BITS);
   ledcWrite(PIN_AIN1, BEEP_DUTY);
+  ledcWrite(PIN_BIN1, BEEP_DUTY);
   delay(ms);
   ledcWrite(PIN_AIN1, 0);
+  ledcWrite(PIN_BIN1, 0);
   ledcChangeFrequency(PIN_AIN1, PWM_FREQ_HZ, PWM_RES_BITS);
+  ledcChangeFrequency(PIN_BIN1, PWM_FREQ_HZ, PWM_RES_BITS);
 #else
   ledcSetup(CH_AIN1, freqHz, PWM_RES_BITS);
+  ledcSetup(CH_BIN1, freqHz, PWM_RES_BITS);
   ledcWrite(CH_AIN1, BEEP_DUTY);
+  ledcWrite(CH_BIN1, BEEP_DUTY);
   delay(ms);
   ledcWrite(CH_AIN1, 0);
+  ledcWrite(CH_BIN1, 0);
   ledcSetup(CH_AIN1, PWM_FREQ_HZ, PWM_RES_BITS);   // 주행용 200Hz 복원
+  ledcSetup(CH_BIN1, PWM_FREQ_HZ, PWM_RES_BITS);
 #endif
 }
 

@@ -18,6 +18,7 @@ import { parseRobotMessage } from '@snack-express/protocol';
 import { RobotRegistryService } from './robot-registry.service';
 import { VoiceService } from '../voice/voice.service';
 import { VisionService } from '../vision/vision.service';
+import { SceneService } from '../scene/scene.service';
 
 @WebSocketGateway({ path: '/robot' })
 export class RobotGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -30,6 +31,7 @@ export class RobotGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private readonly registry: RobotRegistryService,
     private readonly voice: VoiceService,
     private readonly vision: VisionService,
+    private readonly scenes: SceneService,
   ) {}
 
   /** 새 WebSocket 연결. 이 시점엔 robotId가 없으므로 hello를 기다린다. */
@@ -79,7 +81,20 @@ export class RobotGateway implements OnGatewayConnection, OnGatewayDisconnect {
       case 'state': {
         const robotId = this.registry.getRobotIdBySocket(client);
         if (robotId) {
-          this.logger.debug(`[${robotId}] State: mode=${msg.mode} battery=${msg.batteryPct}`);
+          this.logger.debug(
+            `[${robotId}] State: mode=${msg.mode} battery=${msg.batteryPct} seated=${msg.seated}`,
+          );
+          const result = this.registry.updateState(robotId, msg);
+          // 착좌 전이 감지 → 주행모드 씬.
+          //   시작: false/미보고 → true (앉은 채 부팅한 최초 보고도 시작으로 취급)
+          //   종료: true → false (부팅 직후 false 보고는 전이 아님 — 종료 연출 생략)
+          if (result && msg.seated !== undefined) {
+            if (msg.seated && result.prevSeated !== true) {
+              void this.scenes.drivingModeStart();
+            } else if (!msg.seated && result.prevSeated === true) {
+              void this.scenes.drivingModeEnd();
+            }
+          }
         }
         break;
       }

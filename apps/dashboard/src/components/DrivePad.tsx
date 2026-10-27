@@ -10,7 +10,7 @@
  *   안전장치다.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { postDrive, type Robot } from "@/lib/gateway";
+import { postDrive, postScene, type Robot } from "@/lib/gateway";
 import styles from "./DrivePad.module.css";
 
 interface Props {
@@ -130,7 +130,17 @@ export default function DrivePad({ robot }: Props) {
         ))}
       </div>
       {hasDrive && (
-        <p className={styles.hint}>키보드 WASD로도 조종 가능</p>
+        <>
+          <button
+            className={styles.btn}
+            style={{ marginTop: 10, width: "100%" }}
+            onClick={() => void postScene("horn")}
+            aria-label="클락션"
+          >
+            📢 빵빵~
+          </button>
+          <p className={styles.hint}>키보드 WASD로도 조종 가능</p>
+        </>
       )}
     </section>
   );

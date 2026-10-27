@@ -18,9 +18,10 @@
 #endif
 
 // --- 핀 ---
-static const int PIN_LED = 8;    // 온보드 LED (active-low: LOW=켜짐)
-// 예약(이번 범위 밖): GPIO7=리드 스위치(착좌 감지), GPIO10=WS2812B LED 스트립.
-//   → 다음 단계에서 state.seated 송신 / 상태 조명에 사용 예정. 지금은 건드리지 않는다.
+static const int PIN_LED = 8;     // 온보드 LED (active-low: LOW=켜짐)
+static const int PIN_SEAT = 7;    // 착좌 감지 — 내부 풀업, 접점(구리테이프/리드 스위치)이
+                                  // GND로 떨어지면 착좌. 미배선 시 항상 HIGH(=하차)라 무해.
+// (WS2812B 네온은 계획에서 제외됨 — 2026-10-27)
 
 static const int      PROTOCOL_VERSION = 0;
 static const char*    FIRMWARE = "snack-express-0.1";
@@ -81,13 +82,48 @@ static void sendHello() {
   Serial.printf("[vehicle] -> hello (robotId=%s)\n", ROBOT_ID);
 }
 
+// --- 착좌 감지 (디바운스) ---
+static bool g_seated = false;
+
+// 50ms 연속 같은 값일 때만 상태 확정 (접점 채터링 방지)
+static bool readSeatedDebounced() {
+  static bool     stable = false;
+  static bool     lastRaw = false;
+  static uint32_t lastChangeMs = 0;
+  bool raw = (digitalRead(PIN_SEAT) == LOW);   // LOW = 접점 닫힘 = 착좌
+  if (raw != lastRaw) { lastRaw = raw; lastChangeMs = millis(); }
+  if (millis() - lastChangeMs >= 50) stable = raw;
+  return stable;
+}
+
 static void sendState() {
   JsonDocument doc;
   doc["type"] = "state";
   doc["mode"] = modeStr();
+  doc["seated"] = g_seated;
   String out;
   serializeJson(doc, out);
   webSocket.sendTXT(out);
+}
+
+// 착좌 변화는 5초 주기를 기다리지 않고 즉시 state로 알린다 (주행모드 연출 트리거)
+static void pollSeat() {
+  bool now = readSeatedDebounced();
+  if (now != g_seated) {
+    g_seated = now;
+    Serial.printf("[vehicle] seated=%s\n", now ? "true" : "false");
+    if (g_connected) sendState();
+  }
+}
+
+// --- 클락션 ---
+// 서버 sequence의 sound:"horn" → 모터 비프 2연타 "빵빵~". 주행 중엔 울리지 않음
+// (비프가 모터 PWM 타이머를 공유하므로 — drive::beep 내부에서 거부).
+static void playHorn() {
+  Serial.println("[vehicle] horn!");
+  drive::beep(500, 180);
+  delay(90);
+  drive::beep(500, 300);
 }
 
 // --- 수신 ---
@@ -111,8 +147,15 @@ static void handleMessage(uint8_t* payload, size_t length) {
       Serial.printf("[vehicle] <- drive L=%.2f R=%.2f ttl=%lu\n", left, right, (unsigned long)ttlMs);
     }
     drive::set(left, right, ttlMs);   // ttlMs 후 데드맨 자동 정지
+  } else if (strcmp(type, "sequence") == 0) {
+    // 화면이 없어 표정·텍스트는 무시하되, 아는 사운드 id는 모터 비프로 재생한다.
+    JsonArray steps = doc["steps"].as<JsonArray>();
+    for (JsonObject step : steps) {
+      const char* sound = step["sound"] | "";
+      if (strcmp(sound, "horn") == 0) playHorn();
+    }
   } else {
-    // tts.chunk / sequence / hello.ack / listen 등 — 이 개체엔 화면·스피커가 없어 무시.
+    // tts.chunk / hello.ack / listen 등 — 이 개체엔 화면·스피커가 없어 무시.
     Serial.printf("[vehicle] <- %s (ignored)\n", type);
   }
 }
@@ -215,6 +258,7 @@ void setup() {
 
   pinMode(PIN_LED, OUTPUT);
   ledOff();
+  pinMode(PIN_SEAT, INPUT_PULLUP);
 
   drive::begin();   // 부팅 시 모터 정지 보장
 
@@ -239,6 +283,7 @@ void setup() {
 void loop() {
   webSocket.loop();
   drive::tick();   // 데드맨: ttl 만료 시 정지(연결 여부 무관하게 항상 체크)
+  pollSeat();      // 착좌 변화 즉시 통보
 
   if (g_connected) {
     uint32_t now = millis();
