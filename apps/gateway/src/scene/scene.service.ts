@@ -70,7 +70,7 @@ export class SceneService {
     const face = this.faceRobot('driving-start');
     if (!face) return;
     // 'cool'(😎)은 CoreS3 얼굴 에셋 추가 전까지 neutral 폴백 — 말풍선 😎로 보완
-    await this.voice.speak(face, '😎 주행모드 시작합니다', 'cool');
+    await this.voice.speak(face, '주행모드 시작', 'cool');
   }
 
   /** 하차 → 주행모드 종료 연출 */
