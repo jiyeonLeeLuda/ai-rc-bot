@@ -62,7 +62,16 @@ M5Stack CoreS3 기반 자작 스타크챤(StackChan) + 분리형 탱크 차량 "
 - 미러 모드: cockpit 연결 시 camera.frame(VGA JPEG) 서버 전송 → 서버 분류(1~2.5초)
   → sequence 하달. 온디바이스 TLS 제거로 HeapGuard 메모리 문제 해소 (실기 확인)
 - 음성 파이프라인 서버 기준선: stt 2.6s / llm 2.8s / tts 1.8s / 총 7.2s (mock-robot E2E)
-- 다음 후보: 마이크 스트리밍(음성 턴 서버 이관), drive 펌웨어, cockpit 설정 웹 UI화
+- **씬·컨트롤러 (2026-10-27)**: SceneService(멀티 로봇 연출) — 착좌 전이 → 스타키 선글라스 😎
+  + "주행모드 시작" TTS, 클락션(합성 이중톤 420+508Hz 클리핑 PCM + "배달왔어요!"),
+  POST /robots/scenes/:name. 대시보드는 로봇 선택 없는 통합 컨트롤러(능력 기반 자동 라우팅).
+  speak(/robots/:id/speak, 구 say — 말풍선은 TTS 완료 후 음성과 동시 표시)·chat(말 걸기, LLM 답변 생성·이력 공유)
+- **스타키 펌웨어 오버레이 (AI_StackChan_Ex feature/cockpit-ws)**: 선글라스(CoolFace) = 표정과 독립,
+  sound:"glasses-off"로만 해제. EyeFX = 눈 O·K(끄덕)/N·O(도리도리)/확대·축소(두리번), sound 마커(eyes-*) 제어,
+  시퀀스 종료 시 자동 복귀. 우선순위: 선글라스 > EyeFX > 윙크 > 기본 눈
+- 착좌 감지 하드웨어: 자석(니켈 도금=전도체)이 콕핏 바닥의 점퍼선 접점 2개(GPIO7/GND, 간격 4~5mm)를
+  브리지. 흡착용 자석은 골판지 아래 숨김(셀프 얼라인). 점퍼선 GND 터치로 검증 완료
+- 다음 후보: 마이크 스트리밍(음성 턴 서버 이관), cockpit 설정 웹 UI화, 착좌 접점 실물 조립
 
 ## 4. 디자인 (확정: v7 「BLACK CYBER ROADSTER」)
 
