@@ -71,7 +71,12 @@ M5Stack CoreS3 기반 자작 스타크챤(StackChan) + 분리형 탱크 차량 "
   시퀀스 종료 시 자동 복귀. 우선순위: 선글라스 > EyeFX > 윙크 > 기본 눈
 - 착좌 감지 하드웨어: 자석(니켈 도금=전도체)이 콕핏 바닥의 점퍼선 접점 2개(GPIO7/GND, 간격 4~5mm)를
   브리지. 흡착용 자석은 골판지 아래 숨김(셀프 얼라인). 점퍼선 GND 터치로 검증 완료
-- **FPV 주행 뷰 (2026-10-27, 서버·펌웨어 구현 완료·실기 검증 전)**: 탑승모드에서 스타키 카메라=전방 시점.
+- **FPV 주행 뷰 (2026-10-28 실기 검증 완료 — 대시보드 실시간 표시 OK)**: 탑승모드에서 스타키 카메라=전방 시점.
+  실측 VGA 640x480 ~1.5fps, 5.5KB/프레임 JPEG. **카메라 init은 반드시 메인 루프(fpvPoll)에서** —
+  WS 태스크에서 호출하면 I2C/SCCB 충돌로 "Camera probe failed". cam_hal EV-OVF 로그는 억제(CPU).
+  설계 원칙(사용자 지침): 로봇은 캡처+전송만 하는 얇은 클라이언트, 서버가 중계. fps 위해 로봇 PSRAM 늘리는
+  fb_count=2는 의도적으로 안 함. 미래 최적화(서버 오프로드): camera.frame을 바이너리 WS 프레임으로 승격
+  (base64 CPU·버퍼 제거) — 단 미러모드 Vision 경로와 공유라 미러 재검증 필요.
   camera.frame을 CameraService가 SSE(`GET /robots/:id/camera/stream`)로 대시보드 중계, CameraView가 EventSource로 표시.
   펌웨어는 `fpvPoll()`(메인 루프, WS 태스크 블로킹 회피)이 200ms 주기 캡처, sound 마커 `fpv-on/off`로 토글
   (착좌/하차 씬이 자동 송신 + 대시보드 수동 토글 버튼). 미러 on이면 이중 캡처 스킵.
