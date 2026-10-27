@@ -251,6 +251,24 @@ export class VoiceService {
   }
 
   /**
+   * 합성 PCM(24kHz/16bit/mono)을 로봇 스피커로 재생한다 (효과음용).
+   * tts.chunk 스트림을 그대로 재사용 — 로봇은 도착 순서대로 재생만 한다.
+   */
+  playPcm(robotId: string, pcm: Buffer): void {
+    const chunkSize = 32 * 1024;
+    let seq = 0;
+    for (let offset = 0; offset < pcm.length; offset += chunkSize) {
+      const slice = pcm.subarray(offset, offset + chunkSize);
+      this.registry.send(robotId, {
+        type: 'tts.chunk',
+        seq: seq++,
+        data: slice.toString('base64'),
+        final: offset + chunkSize >= pcm.length,
+      });
+    }
+  }
+
+  /**
    * 지정 텍스트를 TTS로 합성해 로봇에게 말하게 한다 (씬 연출용 — 대화 이력과 무관).
    * 표정을 함께 주면 발화 동안 그 표정+말풍선 sequence도 전송한다.
    * OpenAI 키가 없으면 말풍선만 보낸다(무음 폴백).
