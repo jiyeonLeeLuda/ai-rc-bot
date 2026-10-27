@@ -101,6 +101,15 @@ export function cameraStreamUrl(robotId: string): string {
   return `${BASE}/robots/${robotId}/camera/stream`;
 }
 
+/** FPV 스트리밍 수동 토글 (착좌 센서 없이 테스트용). */
+export async function postFpv(robotId: string, on: boolean): Promise<void> {
+  await fetch(`${BASE}/robots/${robotId}/fpv`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ on }),
+  });
+}
+
 /** 말 걸기: LLM이 로봇의 답변을 생성해 발화한다 (음성 턴과 대화 이력 공유). */
 export async function postChat(robotId: string, text: string): Promise<void> {
   await fetch(`${BASE}/robots/${robotId}/chat`, {

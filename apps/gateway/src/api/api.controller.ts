@@ -64,6 +64,22 @@ export class ApiController {
   }
 
   /**
+   * POST /robots/:id/fpv — FPV 스트리밍 수동 토글 (착좌 센서 없이 테스트용).
+   * body: { on: boolean }. sound 마커(fpv-on/off)를 로봇에 직접 보낸다.
+   * 평상시엔 착좌/하차 씬이 자동 토글하지만, 하드웨어 없이 검증할 때 이걸 쓴다.
+   */
+  @Post(':id/fpv')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  setFpv(@Param('id') robotId: string, @Body() body: unknown): void {
+    const on = (body as Record<string, unknown>)?.on === true;
+    this.registry.send(robotId, {
+      type: 'sequence',
+      id: `fpv-${on ? 'on' : 'off'}-${Date.now()}`,
+      steps: [{ sound: on ? 'fpv-on' : 'fpv-off', durationMs: 60 }],
+    });
+  }
+
+  /**
    * POST /robots/scenes/:name — 멀티 로봇 씬 재생 (horn | driving-start | driving-end).
    * horn은 대시보드 클락션 버튼이, driving-*는 착좌 전이가 주 트리거지만
    * 하드웨어(착좌 접점) 없이도 테스트할 수 있게 REST로도 연다.

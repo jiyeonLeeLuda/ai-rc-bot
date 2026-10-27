@@ -26,6 +26,16 @@ export class CameraService {
   // robotId → 프레임 스트림 (SSE 구독자에게 push)
   private readonly streams = new Map<string, Subject<FramePayload>>();
 
+  /** 로봇별 Subject를 가져오거나 없으면 생성 (구독·방송 공용 진입점). */
+  private subjectFor(robotId: string): Subject<FramePayload> {
+    let subject = this.streams.get(robotId);
+    if (!subject) {
+      subject = new Subject<FramePayload>();
+      this.streams.set(robotId, subject);
+    }
+    return subject;
+  }
+
   /** 로봇이 올린 프레임을 보관 + 구독자에게 방송. */
   publish(robotId: string, frame: CameraFrame): void {
     const payload: FramePayload = {
@@ -36,17 +46,12 @@ export class CameraService {
       ts: Date.now(),
     };
     this.latest.set(robotId, payload);
-    this.streams.get(robotId)?.next(payload);
+    this.subjectFor(robotId).next(payload);
   }
 
-  /** SSE용 프레임 스트림. 구독 즉시 최신 프레임 1장이 있으면 흘려준다. */
+  /** SSE용 프레임 스트림. */
   stream(robotId: string): Observable<FramePayload> {
-    let subject = this.streams.get(robotId);
-    if (!subject) {
-      subject = new Subject<FramePayload>();
-      this.streams.set(robotId, subject);
-    }
-    return subject.asObservable();
+    return this.subjectFor(robotId).asObservable();
   }
 
   /** 최신 프레임 1장 (폴링/썸네일 폴백용). */
@@ -54,10 +59,14 @@ export class CameraService {
     return this.latest.get(robotId);
   }
 
-  /** 로봇 연결 해제 시 정리. */
+  /**
+   * 로봇 연결 해제 시 정리.
+   * Subject는 complete/삭제하지 않는다 — 열려 있는 SSE 구독(대시보드 탭)이 로봇
+   * 재접속 후에도 같은 스트림으로 프레임을 계속 받게 하기 위함. complete시키면
+   * 재접속해도 그 탭은 영영 프레임을 못 받아(완료된 Observable) 새로고침해야 한다.
+   * robotId 종류는 유한해서 Subject 상주 비용은 무시 가능.
+   */
   cleanup(robotId: string): void {
     this.latest.delete(robotId);
-    this.streams.get(robotId)?.complete();
-    this.streams.delete(robotId);
   }
 }

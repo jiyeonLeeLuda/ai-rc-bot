@@ -8,7 +8,7 @@
  * 가볍고, 끊기면 브라우저가 자동 재연결한다. 프레임은 base64 JPEG(data URL).
  */
 import { useEffect, useRef, useState } from "react";
-import { cameraStreamUrl } from "@/lib/gateway";
+import { cameraStreamUrl, postFpv } from "@/lib/gateway";
 import styles from "./CameraView.module.css";
 
 interface Props {
@@ -60,6 +60,16 @@ export default function CameraView({ robotId }: Props) {
         >
           ● {connected ? `LIVE ${fps}fps` : "오프라인"}
         </span>
+      </div>
+
+      {/* 착좌 센서 없이 테스트할 때 수동 토글 (평상시엔 착좌/하차가 자동) */}
+      <div className={styles.toggleRow}>
+        <button className={styles.toggle} onClick={() => void postFpv(robotId, true)}>
+          스트림 ON
+        </button>
+        <button className={styles.toggle} onClick={() => void postFpv(robotId, false)}>
+          OFF
+        </button>
       </div>
 
       <div className={styles.frame}>

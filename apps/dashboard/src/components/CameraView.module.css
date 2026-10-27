@@ -32,6 +32,26 @@
   color: #888899;
 }
 
+.toggleRow {
+  display: flex;
+  gap: 0.4rem;
+}
+.toggle {
+  flex: 1;
+  padding: 0.35rem;
+  font-size: 0.72rem;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  color: #8b96a8;
+  background: #0f141f;
+  border: 1px solid #27304a;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.toggle:hover {
+  color: #22d3ee;
+  border-color: #22d3ee;
+}
+
 .frame {
   position: relative;
   width: 100%;
