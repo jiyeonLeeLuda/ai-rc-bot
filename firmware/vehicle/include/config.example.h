@@ -8,16 +8,19 @@
 //   1순위(집): 고정 IP 사용 — C3 슈퍼미니 개체의 DHCP 유실 문제 우회 (main.cpp 참고)
 //   2순위(핫스팟): DHCP — 외부에서 주행 테스트할 때. 아이폰은 "호환성 극대화" ON(2.4GHz)
 //
+// COCKPIT_HOST: 맥의 .local 이름(mDNS)을 쓰면 IP가 바뀌거나 네트워크가 달라져도
+//   그대로 접속된다 — 집·핫스팟 모두 같은 이름. 맥에서 `scutil --get LocalHostName`으로 확인.
+//   (하드코딩 IP도 가능하지만 맥 IP가 바뀔 때마다 재설정 필요)
 
 // --- 1순위: 집 ---
 #define WIFI_SSID     "your-wifi-ssid"      // 2.4GHz만 지원
 #define WIFI_PASS     "your-wifi-password"
-#define COCKPIT_HOST  "192.168.1.50"        // 이 네트워크에서의 gateway 서버 IP (맥 IP)
+#define COCKPIT_HOST  "your-mac.local"      // 맥 mDNS 이름 (또는 고정 IP)
 
 // --- 2순위: 폰 핫스팟 ---
 #define WIFI2_SSID    "your-hotspot-ssid"
 #define WIFI2_PASS    "your-hotspot-password"
-#define COCKPIT2_HOST "172.20.10.2"         // 핫스팟에서의 맥 IP (아이폰 첫 기기는 보통 172.20.10.2)
+#define COCKPIT2_HOST "your-mac.local"      // 같은 맥이면 .local 이름 동일 — 핫스팟에서도 그대로
 
 #define COCKPIT_PORT  3001
 #define ROBOT_ID      "snack-express"       // hello.robotId

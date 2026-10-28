@@ -6,6 +6,7 @@
 
 #include <Arduino.h>
 #include <WiFi.h>
+#include <ESPmDNS.h>
 #include <WebSocketsClient.h>
 #include <ArduinoJson.h>
 #include "drive.h"
@@ -274,10 +275,37 @@ void setup() {
 
   connectWifi();
 
-  webSocket.begin(g_cockpitHost, COCKPIT_PORT, "/robot");
+  // 서버 호스트가 ".local"이면 mDNS로 현재 IP를 해석한다. 이렇게 하면 맥 IP가
+  // 바뀌거나 네트워크(집↔핫스팟)가 달라져도 config를 안 고쳐도 된다 — 이름은 그대로.
+  // WebSocketsClient의 내장 DNS(hostByName)는 .local을 못 풀어서 직접 해석해 IP를 넘긴다.
+  static char resolvedHost[64];
+  strncpy(resolvedHost, g_cockpitHost, sizeof(resolvedHost) - 1);
+  resolvedHost[sizeof(resolvedHost) - 1] = '\0';
+  size_t hlen = strlen(resolvedHost);
+  if (hlen > 6 && strcmp(resolvedHost + hlen - 6, ".local") == 0) {
+    resolvedHost[hlen - 6] = '\0';   // ".local" 떼고 호스트명만
+    MDNS.begin("snack-vehicle");
+    Serial.printf("[vehicle] mDNS 해석 중: %s.local ...\n", resolvedHost);
+    IPAddress ip;
+    for (int attempt = 0; attempt < 5; attempt++) {
+      ip = MDNS.queryHost(resolvedHost, 2000);
+      if (ip != IPAddress(0, 0, 0, 0)) break;
+      Serial.println("[vehicle] mDNS 재시도...");
+    }
+    if (ip != IPAddress(0, 0, 0, 0)) {
+      strncpy(resolvedHost, ip.toString().c_str(), sizeof(resolvedHost) - 1);
+      Serial.printf("[vehicle] mDNS → %s\n", resolvedHost);
+    } else {
+      // 해석 실패 폴백: 원래 .local 문자열 복원(그래도 실패하겠지만 로그로 드러남)
+      strncpy(resolvedHost, g_cockpitHost, sizeof(resolvedHost) - 1);
+      Serial.println("[vehicle] mDNS 해석 실패 — 호스트 원문 사용(접속 안 될 수 있음)");
+    }
+  }
+
+  webSocket.begin(resolvedHost, COCKPIT_PORT, "/robot");
   webSocket.onEvent(onWsEvent);
   webSocket.setReconnectInterval(RECONNECT_MS);   // 끊기면 5초 후 재접속
-  Serial.printf("[vehicle] WS target ws://%s:%d/robot\n", g_cockpitHost, COCKPIT_PORT);
+  Serial.printf("[vehicle] WS target ws://%s:%d/robot\n", resolvedHost, COCKPIT_PORT);
 }
 
 void loop() {
