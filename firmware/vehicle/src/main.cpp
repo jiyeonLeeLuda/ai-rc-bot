@@ -43,8 +43,8 @@ struct NetConfig {
   bool        useStaticIp;
 };
 static const NetConfig NETWORKS[] = {
-  { WIFI_SSID,  WIFI_PASS,  COCKPIT_HOST,  true  },   // 1순위: 집
-  { WIFI2_SSID, WIFI2_PASS, COCKPIT2_HOST, false },   // 2순위: 폰 핫스팟
+  { WIFI2_SSID, WIFI2_PASS, COCKPIT2_HOST, false },   // 1순위: 폰 핫스팟 (데모 우선)
+  { WIFI_SSID,  WIFI_PASS,  COCKPIT_HOST,  true  },   // 2순위: 집 (폴백)
 };
 static const int  NETWORK_COUNT = sizeof(NETWORKS) / sizeof(NETWORKS[0]);
 static const char* g_cockpitHost = COCKPIT_HOST;   // connectWifi()에서 확정
@@ -305,6 +305,9 @@ void setup() {
   webSocket.begin(resolvedHost, COCKPIT_PORT, "/robot");
   webSocket.onEvent(onWsEvent);
   webSocket.setReconnectInterval(RECONNECT_MS);   // 끊기면 5초 후 재접속
+  // WS 하트비트: 15초마다 ping → 핫스팟이 idle로 끊는 걸 방지 + 죽은 연결을
+  // pong 3초 미응답 ×2회로 빨리 감지해 재접속(폰 핫스팟 idle 드랍 대비).
+  webSocket.enableHeartbeat(15000, 3000, 2);
   Serial.printf("[vehicle] WS target ws://%s:%d/robot\n", resolvedHost, COCKPIT_PORT);
 }
 
