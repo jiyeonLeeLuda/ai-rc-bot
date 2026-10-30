@@ -43,8 +43,9 @@ struct NetConfig {
   bool        useStaticIp;
 };
 static const NetConfig NETWORKS[] = {
-  { WIFI2_SSID, WIFI2_PASS, COCKPIT2_HOST, false },   // 1순위: 폰 핫스팟 (데모 우선)
-  { WIFI_SSID,  WIFI_PASS,  COCKPIT_HOST,  true  },   // 2순위: 집 (폴백)
+  { WIFI2_SSID, WIFI2_PASS, COCKPIT2_HOST, false },   // 1순위: 폰 핫스팟 (데모 — mDNS 작동)
+  { WIFI3_SSID, WIFI3_PASS, COCKPIT3_HOST, false },   // 2순위: 회사 2.4GHz (mediquitous — mDNS 차단됨)
+  { WIFI_SSID,  WIFI_PASS,  COCKPIT_HOST,  true  },   // 3순위: 집
 };
 static const int  NETWORK_COUNT = sizeof(NETWORKS) / sizeof(NETWORKS[0]);
 static const char* g_cockpitHost = COCKPIT_HOST;   // connectWifi()에서 확정
@@ -252,6 +253,31 @@ static void connectWifi() {
                 WiFi.localIP().toString().c_str(), WiFi.RSSI());
 }
 
+// 서버 호스트 해석: ".local"이면 mDNS로 현재 IP를, 아니면 원문을 out에 담는다.
+// mDNS 실패 시 false (out 미변경). MDNS.begin()은 호출 전 1회 필요.
+static char g_resolvedHost[64] = {0};   // 현재 WS 타깃(IP 또는 리터럴)
+static uint32_t g_lastResolveMs = 0;
+
+static bool resolveHost(const char* host, char* out, size_t outLen) {
+  size_t hlen = strlen(host);
+  if (hlen > 6 && strcmp(host + hlen - 6, ".local") == 0) {
+    char name[64];
+    strncpy(name, host, sizeof(name) - 1); name[sizeof(name) - 1] = '\0';
+    name[hlen - 6] = '\0';   // ".local" 제거
+    IPAddress ip = MDNS.queryHost(name, 2000);
+    if (ip == IPAddress(0, 0, 0, 0)) return false;
+    strncpy(out, ip.toString().c_str(), outLen - 1); out[outLen - 1] = '\0';
+    return true;
+  }
+  strncpy(out, host, outLen - 1); out[outLen - 1] = '\0';
+  return true;
+}
+
+static bool hostIsLocal() {
+  size_t hlen = strlen(g_cockpitHost);
+  return hlen > 6 && strcmp(g_cockpitHost + hlen - 6, ".local") == 0;
+}
+
 void setup() {
   Serial.begin(115200);
   delay(200);
@@ -275,46 +301,48 @@ void setup() {
 
   connectWifi();
 
-  // 서버 호스트가 ".local"이면 mDNS로 현재 IP를 해석한다. 이렇게 하면 맥 IP가
-  // 바뀌거나 네트워크(집↔핫스팟)가 달라져도 config를 안 고쳐도 된다 — 이름은 그대로.
-  // WebSocketsClient의 내장 DNS(hostByName)는 .local을 못 풀어서 직접 해석해 IP를 넘긴다.
-  static char resolvedHost[64];
-  strncpy(resolvedHost, g_cockpitHost, sizeof(resolvedHost) - 1);
-  resolvedHost[sizeof(resolvedHost) - 1] = '\0';
-  size_t hlen = strlen(resolvedHost);
-  if (hlen > 6 && strcmp(resolvedHost + hlen - 6, ".local") == 0) {
-    resolvedHost[hlen - 6] = '\0';   // ".local" 떼고 호스트명만
+  // 서버 호스트가 ".local"이면 mDNS로 현재 IP를 해석한다. 맥 IP가 바뀌거나 네트워크가
+  // 달라져도 config를 안 고쳐도 된다. 끊겼을 때 loop에서 재해석해 맥 IP 변경 시 재부팅
+  // 없이 새 IP로 재타깃한다(회사망 DHCP 재할당 대비). 원문은 g_cockpitHost에 보존.
+  strncpy(g_resolvedHost, g_cockpitHost, sizeof(g_resolvedHost) - 1);
+  if (hostIsLocal()) {
     MDNS.begin("snack-vehicle");
-    Serial.printf("[vehicle] mDNS 해석 중: %s.local ...\n", resolvedHost);
-    IPAddress ip;
+    Serial.printf("[vehicle] mDNS 해석 중: %s ...\n", g_cockpitHost);
     for (int attempt = 0; attempt < 5; attempt++) {
-      ip = MDNS.queryHost(resolvedHost, 2000);
-      if (ip != IPAddress(0, 0, 0, 0)) break;
+      if (resolveHost(g_cockpitHost, g_resolvedHost, sizeof(g_resolvedHost))) break;
       Serial.println("[vehicle] mDNS 재시도...");
     }
-    if (ip != IPAddress(0, 0, 0, 0)) {
-      strncpy(resolvedHost, ip.toString().c_str(), sizeof(resolvedHost) - 1);
-      Serial.printf("[vehicle] mDNS → %s\n", resolvedHost);
-    } else {
-      // 해석 실패 폴백: 원래 .local 문자열 복원(그래도 실패하겠지만 로그로 드러남)
-      strncpy(resolvedHost, g_cockpitHost, sizeof(resolvedHost) - 1);
-      Serial.println("[vehicle] mDNS 해석 실패 — 호스트 원문 사용(접속 안 될 수 있음)");
-    }
+    Serial.printf("[vehicle] mDNS → %s\n", g_resolvedHost);
   }
+  g_lastResolveMs = millis();
 
-  webSocket.begin(resolvedHost, COCKPIT_PORT, "/robot");
+  webSocket.begin(g_resolvedHost, COCKPIT_PORT, "/robot");
   webSocket.onEvent(onWsEvent);
   webSocket.setReconnectInterval(RECONNECT_MS);   // 끊기면 5초 후 재접속
   // WS 하트비트: 15초마다 ping → 핫스팟이 idle로 끊는 걸 방지 + 죽은 연결을
   // pong 3초 미응답 ×2회로 빨리 감지해 재접속(폰 핫스팟 idle 드랍 대비).
   webSocket.enableHeartbeat(15000, 3000, 2);
-  Serial.printf("[vehicle] WS target ws://%s:%d/robot\n", resolvedHost, COCKPIT_PORT);
+  Serial.printf("[vehicle] WS target ws://%s:%d/robot\n", g_resolvedHost, COCKPIT_PORT);
 }
 
 void loop() {
   webSocket.loop();
   drive::tick();   // 데드맨: ttl 만료 시 정지(연결 여부 무관하게 항상 체크)
   pollSeat();      // 착좌 변화 즉시 통보
+
+  // 끊긴 동안 8초마다 .local 재해석 — 맥 IP가 바뀌면 재부팅 없이 새 IP로 재타깃.
+  if (!g_connected && hostIsLocal() && WiFi.status() == WL_CONNECTED &&
+      millis() - g_lastResolveMs > 8000) {
+    g_lastResolveMs = millis();
+    char newHost[64];
+    if (resolveHost(g_cockpitHost, newHost, sizeof(newHost)) &&
+        strcmp(newHost, g_resolvedHost) != 0) {
+      Serial.printf("[vehicle] mDNS 재해석 → %s (이전 %s) 재타깃\n", newHost, g_resolvedHost);
+      strncpy(g_resolvedHost, newHost, sizeof(g_resolvedHost) - 1);
+      webSocket.disconnect();
+      webSocket.begin(g_resolvedHost, COCKPIT_PORT, "/robot");
+    }
+  }
 
   if (g_connected) {
     uint32_t now = millis();
